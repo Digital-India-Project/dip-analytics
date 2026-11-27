@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1.0.0",
+  "repository": "dip-analytics",
+  "package": "@digital-india-project/dip-analytics",
+  "version": "0.1.0",
+  "status": "foundation-review",
+  "runtime": "node>=20",
+  "language": "typescript",
+  "moduleFormat": "esm",
+  "publicEntry": "src/index.ts",
+  "owners": ["analytics-contracts", "funnel-aggregation", "revenue-aggregation", "partner-performance-aggregation", "aggregate-csv-export"],
+  "dependencies": [],
+  "consumers": ["DIPINDIA", "dip-api", "dip-ui", "dip-automation"],
+  "security": {"tenantAuthorizationEnforcedByConsumer": true, "piiAllowed": false, "rawDocumentsAllowed": false, "secretsAllowed": false},
+  "verification": {"typecheck": "not-run", "tests": "not-run", "build": "not-run", "integration": "not-run"}
+}
