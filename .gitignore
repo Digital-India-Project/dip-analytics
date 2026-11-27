@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .test-dist/
+public/assets/
 coverage/
 .env
 .env.local

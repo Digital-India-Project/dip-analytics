@@ -35,7 +35,7 @@ npm run build
 npm run benchmark
 ```
 
-For local contract inspection on `http://0.0.0.0:3000` (`/health`, `/manifest`, `/schemas`, `/capabilities`):
+For the interactive DIP Analytics Workbench UI and contract inspection endpoints on `http://0.0.0.0:3000` (`/`, `/health`, `/manifest`, `/schemas`, `/capabilities`):
 
 ```bash
 npm run dev

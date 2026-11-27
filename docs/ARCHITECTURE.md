@@ -57,13 +57,9 @@ src/contracts/upcasters.ts     (EventUpcasterRegistry for multi-step schema upgr
 
 ---
 
-## 4. Runtime Contract Inspection Server
+## 4. Runtime Contract & Interactive Workbench Server
 
-For container/preview verification in Node.js 22 (`npm run dev` / `npm start`), `src/runtime/contract-server.ts` exposes a minimal read-only HTTP server on `0.0.0.0:3000` with endpoints:
-- `GET /` — Package role, contract versions, capabilities, and supported event types.
-- `GET /health` — Service health, schema versions, and capability count.
-- `GET /manifest` — Contents of `integration/manifest.json`.
-- `GET /schemas` — Draft 2020-12 JSON Schemas for envelope and payloads.
-- `GET /capabilities` — Machine-readable catalog of analytics capabilities and event types.
-
-It is strictly a contract inspection endpoint and **not** a dashboard UI.
+For local preview and contract verification in Node.js 22 (`npm run dev` / `npm start`), `src/runtime/contract-server.ts` runs on `0.0.0.0:3000`:
+- `GET /` — Serves the interactive DIP Analytics Workbench UI (`public/index.html`, Tailwind v4 `ui/styles.css`, and strict TypeScript `ui/client.ts`) for browser `text/html` requests, or returns the JSON package/contract summary for API clients.
+- `GET /health`, `/manifest`, `/schemas`, `/capabilities` — Contract inspection endpoints for health, integration manifest, Draft 2020-12 schemas, and capabilities catalog.
+- `GET /api/workbench/overview`, `GET /api/workbench/export`, `POST /api/workbench/validate-event`, `POST /api/workbench/test-tenant-boundary` — Synthetic-only sandbox endpoints powered by the `dip-analytics` domain engine (`src/runtime/demo-seed.ts`), demonstrating multi-tenant isolation, live PII/schema validation, K-anonymity exports, and all dashboard/advanced aggregations with zero PII or external databases.

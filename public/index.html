@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DIP Analytics</title>
+    <meta
+      name="description"
+      content="Secure, tenant-aware analytics domain, versioned event contracts, deterministic aggregations, and reporting foundation for Digital India Project."
+    />
+    <meta property="og:title" content="DIP Analytics" />
+    <meta
+      property="og:description"
+      content="Secure, tenant-aware analytics domain, versioned event contracts, deterministic aggregations, and reporting foundation for Digital India Project."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/assets/app.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen">
+    <div id="app-shell" class="min-h-screen flex flex-col lg:flex-row">
+      <!-- Mobile Drawer Backdrop -->
+      <div
+        id="mobile-sidebar-backdrop"
+        class="fixed inset-0 z-30 bg-slate-950/50 hidden lg:hidden"
+        aria-hidden="true"
+      ></div>
+
+      <!-- Left Workspace Sidebar (260px desktop) -->
+      <aside
+        id="workspace-sidebar"
+        aria-label="Primary analytics navigation"
+        class="fixed inset-y-0 left-0 z-40 w-64 shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between transform -translate-x-full lg:translate-x-0 lg:static transition-transform duration-150 ease-out"
+      >
+        <div>
+          <div class="h-16 px-6 flex items-center justify-between border-b border-slate-200 dark:border-slate-800">
+            <a
+              href="/"
+              class="font-display text-lg font-bold tracking-tight text-slate-900 dark:text-slate-50 whitespace-nowrap shrink-0"
+            >
+              DIP Analytics
+            </a>
+            <button
+              id="close-sidebar-btn"
+              type="button"
+              class="lg:hidden p-2 rounded-md text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 focus-visible:outline-2 focus-visible:outline-blue-600"
+              aria-label="Close navigation menu"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <nav class="p-4 space-y-1" id="sidebar-nav">
+            <button
+              type="button"
+              data-view="executive"
+              class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-left transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-blue-600"
+            >
+              <span>Executive Overview</span>
+            </button>
+            <button
+              type="button"
+              data-view="operations"
+              class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-left transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-blue-600"
+            >
+              <span>Operations &amp; Backlog</span>
+            </button>
+            <button
+              type="button"
+              data-view="finance"
+              class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-left transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-blue-600"
+            >
+              <span>Finance &amp; Economics</span>
+            </button>
+            <button
+              type="button"
+              data-view="entities"
+              class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-left transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-blue-600"
+            >
+              <span>Partners &amp; Workforce</span>
+            </button>
+            <button
+              type="button"
+              data-view="api"
+              class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-left transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-blue-600"
+            >
+              <span>API &amp; Anomalies</span>
+            </button>
+            <button
+              type="button"
+              data-view="export"
+              class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-left transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-blue-600"
+            >
+              <span>Export Studio</span>
+            </button>
+            <button
+              type="button"
+              data-view="governance"
+              class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-left transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-blue-600"
+            >
+              <span>Privacy &amp; Contracts</span>
+            </button>
+          </nav>
+        </div>
+
+        <div class="p-5 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 space-y-1.5">
+          <div class="font-medium text-slate-700 dark:text-slate-200">Synthetic Sandbox Data</div>
+          <div>Zero PII · Integer Minor Units</div>
+          <div>Schema Contract v1.0.0</div>
+        </div>
+      </aside>
+
+      <!-- Main Workspace Column -->
+      <div class="flex-1 min-w-0 flex flex-col">
+        <!-- Top Header (Breadcrumb Left, Single Primary Action + Theme Toggle Right) -->
+        <header class="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+          <div class="flex items-center gap-3 min-w-0">
+            <button
+              id="open-sidebar-btn"
+              type="button"
+              class="lg:hidden p-2 -ml-2 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-blue-600"
+              aria-label="Open navigation menu"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+              </svg>
+            </button>
+            <div class="flex items-center gap-2 text-sm min-w-0 truncate">
+              <span class="text-slate-500 dark:text-slate-400 whitespace-nowrap">Analytics</span>
+              <span class="text-slate-400 dark:text-slate-600" aria-hidden="true">/</span>
+              <h1
+                id="header-breadcrumb-title"
+                class="font-display font-semibold text-slate-900 dark:text-slate-50 truncate"
+              >
+                Executive Overview
+              </h1>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3 shrink-0">
+            <button
+              id="theme-toggle-btn"
+              type="button"
+              class="px-3 py-2 rounded-lg text-xs font-medium border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-blue-600"
+            >
+              Dark Mode
+            </button>
+            <button
+              id="quick-export-csv-btn"
+              type="button"
+              class="px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+            >
+              Download CSV
+            </button>
+          </div>
+        </header>
+
+        <!-- Workspace Filter & Scope Toolbar -->
+        <section
+          aria-label="Query scope and filters"
+          class="bg-white dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 lg:px-8 py-3.5"
+        >
+          <div class="max-w-[1440px] mx-auto flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+            <div class="flex flex-wrap items-center gap-3">
+              <label class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+                <span class="font-medium whitespace-nowrap">Tenant</span>
+                <select
+                  id="filter-tenant"
+                  class="px-2.5 py-1.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-medium focus-visible:outline-2 focus-visible:outline-blue-600"
+                >
+                  <option value="tenant_alpha">tenant_alpha — National Citizen Portal</option>
+                  <option value="tenant_beta">tenant_beta — State Enterprise Registry</option>
+                </select>
+              </label>
+
+              <label class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+                <span class="font-medium whitespace-nowrap">Timezone</span>
+                <select
+                  id="filter-timezone"
+                  class="px-2.5 py-1.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-medium focus-visible:outline-2 focus-visible:outline-blue-600"
+                >
+                  <option value="Asia/Kolkata">Asia/Kolkata (+05:30)</option>
+                  <option value="UTC">UTC</option>
+                </select>
+              </label>
+
+              <label class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+                <span class="font-medium whitespace-nowrap">Service</span>
+                <select
+                  id="filter-service"
+                  class="px-2.5 py-1.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-medium focus-visible:outline-2 focus-visible:outline-blue-600"
+                >
+                  <option value="">All Services</option>
+                </select>
+              </label>
+
+              <label class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+                <span class="font-medium whitespace-nowrap">Currency</span>
+                <select
+                  id="filter-currency"
+                  class="px-2.5 py-1.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-medium focus-visible:outline-2 focus-visible:outline-blue-600"
+                >
+                  <option value="">All Currencies</option>
+                  <option value="INR">INR</option>
+                  <option value="USD">USD</option>
+                </select>
+              </label>
+
+              <div
+                class="inline-flex items-center p-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                role="group"
+                aria-label="Time granularity"
+              >
+                <button
+                  type="button"
+                  data-granularity="day"
+                  class="gran-btn px-3 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap shrink-0"
+                >
+                  Daily
+                </button>
+                <button
+                  type="button"
+                  data-granularity="week"
+                  class="gran-btn px-3 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap shrink-0"
+                >
+                  Weekly
+                </button>
+              </div>
+            </div>
+
+            <!-- Quiet Unboxed Metadata (Zero Pills) -->
+            <div
+              id="scope-metadata-line"
+              class="text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums truncate"
+            >
+              Loading window metadata...
+            </div>
+          </div>
+        </section>
+
+        <!-- Dynamic Main Viewport -->
+        <main class="flex-1 px-4 sm:px-6 lg:px-8 py-6">
+          <div id="main-viewport" class="max-w-[1440px] mx-auto space-y-6"></div>
+        </main>
+      </div>
+    </div>
+
+    <script type="module" src="/assets/client.js"></script>
+  </body>
+</html>
