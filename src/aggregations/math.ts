@@ -61,6 +61,15 @@ export interface DurationSummary {
   readonly p99Ms: number | null;
 }
 
+function percentileFromSorted(sorted: readonly number[], percentile: number): number | null {
+  if (sorted.length === 0) return null;
+  const clamped = Math.min(100, Math.max(0, percentile));
+  if (clamped === 0) return sorted[0] ?? null;
+  const rank = Math.ceil((clamped / 100) * sorted.length);
+  const index = Math.min(sorted.length - 1, Math.max(0, rank - 1));
+  return sorted[index] ?? null;
+}
+
 export function summarizeDurations(durationsMs: readonly number[]): DurationSummary {
   if (durationsMs.length === 0) {
     return {
@@ -80,9 +89,53 @@ export function summarizeDurations(durationsMs: readonly number[]): DurationSumm
     minMs: sorted[0] ?? null,
     maxMs: sorted[sorted.length - 1] ?? null,
     avgMs: computeIntegerMean(sorted),
-    p50Ms: computeNearestRankPercentile(sorted, 50),
-    p90Ms: computeNearestRankPercentile(sorted, 90),
-    p95Ms: computeNearestRankPercentile(sorted, 95),
-    p99Ms: computeNearestRankPercentile(sorted, 99),
+    p50Ms: percentileFromSorted(sorted, 50),
+    p90Ms: percentileFromSorted(sorted, 90),
+    p95Ms: percentileFromSorted(sorted, 95),
+    p99Ms: percentileFromSorted(sorted, 99),
+  };
+}
+
+/**
+ * Merges multiple DurationSummary objects into a combined summary for
+ * high-cardinality rollups (`__other__`). Percentiles are null when merged
+ * without raw samples, while min/max/weighted-avg remain exact.
+ */
+export function mergeDurationSummaries(summaries: readonly DurationSummary[]): DurationSummary {
+  let sampleCount = 0;
+  let minMs: number | null = null;
+  let maxMs: number | null = null;
+  let weightedSum = 0n;
+
+  for (const s of summaries) {
+    if (s.sampleCount === 0) continue;
+    sampleCount += s.sampleCount;
+    if (s.minMs !== null && (minMs === null || s.minMs < minMs)) {
+      minMs = s.minMs;
+    }
+    if (s.maxMs !== null && (maxMs === null || s.maxMs > maxMs)) {
+      maxMs = s.maxMs;
+    }
+    if (s.avgMs !== null) {
+      weightedSum += BigInt(s.avgMs) * BigInt(s.sampleCount);
+    }
+  }
+
+  if (sampleCount === 0) {
+    return summarizeDurations([]);
+  }
+
+  const totalSamples = BigInt(sampleCount);
+  const avgMs = Number((weightedSum + totalSamples / 2n) / totalSamples);
+
+  return {
+    sampleCount,
+    minMs,
+    maxMs,
+    avgMs,
+    p50Ms: null,
+    p90Ms: null,
+    p95Ms: null,
+    p99Ms: null,
   };
 }

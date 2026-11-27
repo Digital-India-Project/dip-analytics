@@ -53,17 +53,22 @@ export function computeEventFingerprint(event: AnyAnalyticsEvent): string {
 export function sortEventsDeterministically<T extends AnyAnalyticsEvent>(
   events: readonly T[],
 ): T[] {
-  return [...events].sort((a, b) => {
-    const aTime = parseStrictIsoTimestampMs(a.eventTimestamp);
-    const bTime = parseStrictIsoTimestampMs(b.eventTimestamp);
-    if (aTime !== bTime) return aTime - bTime;
+  if (events.length <= 1) {
+    return [...events];
+  }
+  const keyed = events.map((event) => ({
+    event,
+    eventMs: parseStrictIsoTimestampMs(event.eventTimestamp),
+    ingestMs: event.ingestedAt ? parseStrictIsoTimestampMs(event.ingestedAt) : 0,
+  }));
 
-    const aIngest = a.ingestedAt ? parseStrictIsoTimestampMs(a.ingestedAt) : 0;
-    const bIngest = b.ingestedAt ? parseStrictIsoTimestampMs(b.ingestedAt) : 0;
-    if (aIngest !== bIngest) return aIngest - bIngest;
-
-    return a.eventId.localeCompare(b.eventId);
+  keyed.sort((a, b) => {
+    if (a.eventMs !== b.eventMs) return a.eventMs - b.eventMs;
+    if (a.ingestMs !== b.ingestMs) return a.ingestMs - b.ingestMs;
+    return a.event.eventId.localeCompare(b.event.eventId);
   });
+
+  return keyed.map((k) => k.event);
 }
 
 /**

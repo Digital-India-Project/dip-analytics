@@ -55,6 +55,10 @@
     "./telemetry": {
       "types": "./dist/telemetry/context.d.ts",
       "default": "./dist/telemetry/context.js"
+    },
+    "./ecosystem": {
+      "types": "./dist/ecosystem/index.d.ts",
+      "default": "./dist/ecosystem/index.js"
     }
   },
   "scripts": {
@@ -64,6 +68,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src tests && tsc -p tsconfig.json --noEmit",
     "test": "tsc -p tsconfig.test.json && node --test \".test-dist/tests/**/*.test.js\"",
+    "benchmark": "npm run build && node dist/runtime/benchmark.js",
     "clean": "rm -rf dist .test-dist"
   },
   "dependencies": {},

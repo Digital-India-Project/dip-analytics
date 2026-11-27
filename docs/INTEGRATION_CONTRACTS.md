@@ -14,7 +14,7 @@ This document defines explicit integration boundaries between `@digital-india-pr
 - **Authentication Requirement:** Service-to-service authenticated transport via `dip-api` / `dip-security` issuing `TenantAuthorizationContext` with scope `analytics:ingest`.
 - **Tenant Boundary:** `event.tenantId` must strictly equal `authContext.authenticatedTenantId`; cross-tenant emission is rejected with `TENANT_BOUNDARY_VIOLATION`.
 - **Error Handling:** Validation errors (`EVENT_VALIDATION_ERROR`, `PRIVACY_VIOLATION`, `INPUT_SIZE_LIMIT_EXCEEDED`), version incompatibility (`EVENT_VALIDATION_ERROR`), and idempotency payload mismatches (`IDEMPOTENCY_CONFLICT`) reject individual events without corrupting valid batch items.
-- **Current Implementation Status:** **Defined & tested in `dip-analytics`** (`src/contracts/events.ts`, `src/validation/event-validator.ts`, `src/storage/in-memory-store.ts`). Upstream emitter wiring in `DIPINDIA` is pending integration.
+- **Current Implementation Status:** **Defined & tested in `dip-analytics`** (`src/contracts/events.ts`, `src/ecosystem/bridges.ts#buildDipIndiaEvent`, `src/validation/event-validator.ts`, `src/storage/in-memory-store.ts`). Upstream emitter wiring in `DIPINDIA` is pending integration.
 
 ---
 
@@ -23,13 +23,13 @@ This document defines explicit integration boundaries between `@digital-india-pr
 - **Contract Owner:** `dip-api` owns HTTP transport & token verification; `dip-analytics` owns validation, query authorization tokens, aggregations, and export serialization.
 - **Expected Input / Output:**
   - Ingestion: Untrusted JSON event(s) + verified `TenantAuthorizationContext` → `EventIngestionResult` / `BatchIngestionSummary`.
-  - Reporting: `TenantAuthorizationContext` + `TenantQueryInput` → `AuthorizedTenantQuery` → Dashboard responses (`src/dashboards/`) or `CsvExportOutput` / `JsonReportExport`.
+  - Reporting: `TenantAuthorizationContext` + `TenantQueryInput` → `AuthorizedTenantQuery` → Dashboard responses (`src/dashboards/`) or `CsvExportOutput` / `NdjsonExportOutput` / `JsonReportExport`.
   - API Telemetry: `api.request_recorded` events emitted per route template (no raw query strings containing PII).
 - **Version:** `1.0.0`.
 - **Authentication Requirement:** `dip-api` must authenticate caller credentials and construct `TenantAuthorizationContext` with `issuedBy: "dip-api"` or `"dip-security"`. Browser-supplied `tenantId` parameters must never be trusted.
 - **Tenant Boundary:** `authorizeTenantQuery()` binds the branded `AuthorizedTenantQuery` exclusively to `authContext.authenticatedTenantId` and rejects any mismatched `claimedTenantId` or `query.tenantId` with `TENANT_BOUNDARY_VIOLATION`.
-- **Error Handling:** Domain errors inherit `AnalyticsDomainError` with stable machine-readable `code` strings (`TENANT_BOUNDARY_VIOLATION`, `PRIVACY_VIOLATION`, `DATE_RANGE_VIOLATION`, `CURRENCY_MISMATCH`, `EXPORT_SECURITY_ERROR`, `IDEMPOTENCY_CONFLICT`) for HTTP 400/403/409/422 mapping in `dip-api`.
-- **Current Implementation Status:** **Defined & tested in `dip-analytics`**. HTTP handler mounting in `dip-api` is pending integration.
+- **Error Handling:** Domain errors inherit `AnalyticsDomainError` with stable machine-readable `code` strings (`TENANT_BOUNDARY_VIOLATION`, `PRIVACY_VIOLATION`, `DATE_RANGE_VIOLATION`, `CURRENCY_MISMATCH`, `EXPORT_SECURITY_ERROR`, `IDEMPOTENCY_CONFLICT`) mapped via `DipApiAnalyticsHandler` (`src/ecosystem/bridges.ts`) to HTTP 400/403/409/413/422 status codes.
+- **Current Implementation Status:** **Handler bridge defined & tested in `dip-analytics`** (`src/ecosystem/bridges.ts#DipApiAnalyticsHandler`). HTTP server mounting in `dip-api` is pending integration.
 
 ---
 
@@ -41,7 +41,7 @@ This document defines explicit integration boundaries between `@digital-india-pr
 - **Version:** `1.0.0`.
 - **Authentication Requirement:** N/A (compile-time & schema-time contract).
 - **Tenant Boundary:** `tenantId` format (`^[a-zA-Z0-9_-]{1,64}$`) must remain consistent across `dip-core` and `dip-analytics`.
-- **Error Handling:** Incompatible schema major versions fail `checkSchemaCompatibility()` (`supportedMajor: 1`).
+- **Error Handling:** Incompatible schema major versions fail `checkSchemaCompatibility()` (`supportedMajor: 1`); legacy compatible payloads can be migrated via `EventUpcasterRegistry` (`src/contracts/upcasters.ts`).
 - **Current Implementation Status:** **Defined & tested in `dip-analytics`**. Cross-package import alignment with `dip-core` is pending.
 
 ---
@@ -83,7 +83,7 @@ This document defines explicit integration boundaries between `@digital-india-pr
 - **Authentication Requirement:** Service identity authorized per tenant by `dip-security` / `dip-api`.
 - **Tenant Boundary:** Snapshots and retention sweeps run strictly per-tenant (`snapshot.tenantId === authContext.authenticatedTenantId`).
 - **Error Handling:** Idempotent snapshot generation over fixed `[from, to)` windows; dry-run retention mode supported.
-- **Current Implementation Status:** **Interfaces & in-memory reference tested in `dip-analytics`**. Scheduler workers in `dip-automation` are pending.
+- **Current Implementation Status:** **Runner bridge & in-memory reference tested in `dip-analytics`** (`src/ecosystem/bridges.ts#DipAutomationScheduledRunner`). Scheduler workers in `dip-automation` are pending.
 
 ---
 

@@ -25,7 +25,7 @@ All calculations are deterministic, pure functions operating on deduplicated, ch
 
 ---
 
-## 3. Metric Definitions (10 Aggregation Modules)
+## 3. Metric Definitions (Aggregation Modules)
 
 1. **Application Funnel (`aggregateApplicationFunnel`):**
    - `submittedCount`, `inProgressTouchedCount`, `completedCount`, `approvedCount`, `rejectedCount`, `cancelledCount`
@@ -46,10 +46,28 @@ All calculations are deterministic, pure functions operating on deduplicated, ch
 6. **Partner Performance (`aggregatePartnerPerformance`):**
    - Per-`partnerRef` auto/manual assignments, completed/returned/reassigned outcomes, `completionRateBps`, turnaround duration summary, and currency-grouped `commissionsByCurrencyMinor`.
 7. **Operator Workload (`aggregateOperatorWorkload`):**
-   - Per-`operatorRef` total actions, breakdown by `OperatorActionType`, distinct queues touched, and handling duration summary.
+   - Per-`operatorRef` total actions, breakdown by `OperatorActionType`, distinct queues touched (`byQueue`), approval/escalation rates, and handling duration summary.
 8. **Payment Metrics (`aggregatePaymentMetrics`):**
    - `initiatedCount`, `succeededCount`, `failedCount`, `refundedCount`, `successRateBps = succeeded / (succeeded + failed)`, `failureRateBps = failed / (succeeded + failed)`, `retryableFailedCount`, failure category breakdown, and method breakdown.
 9. **API Metrics (`aggregateApiMetrics`):**
    - Total and per-endpoint (`METHOD routeTemplate`) request volume, 2xx/4xx/5xx counts, `errorRateBps = (4xx + 5xx) / total`, `serverErrorRateBps = 5xx / total`, latency summary, and top 20 `errorCode`s.
 10. **Historical Time-Series (`aggregateTimeSeries`):**
-    - Zero-filled ordered buckets across `[from, to)` in the requested timezone and granularity covering event volume, application lifecycle counts, SLA breaches, API error rates, and currency-keyed revenue/refund totals.
+    - Zero-filled ordered buckets across `[from, to)` in the requested timezone and granularity (capped at `10,000` buckets) covering event volume, application lifecycle counts, SLA breaches, API error rates, and currency-keyed revenue/refund totals.
+11. **Geographic & Regional Analytics (`aggregateGeographicAnalytics`):**
+    - Per-`regionCode` submitted, completed, approved, rejected, cancelled, SLA breaches, partner assignments, completion/approval rates, and currency-grouped revenue, capped with `__other__`.
+12. **Payment Reconciliation (`aggregatePaymentReconciliation`):**
+    - Correlates `references.paymentRef` across `payment.initiated`, `payment.succeeded`, `payment.failed`, and `payment.refunded` to classify `settledCount`, `failedOnlyCount`, `unsettledInitiatedCount`, `orphanedRefundCount`, `overRefundedCount`, `currencyDiscrepancyCount`, and currency-grouped net settled vs refunded reconciliation totals.
+13. **Customer & Business Account Activity (`aggregateAccountActivity`):**
+    - Uses opaque `references.accountRef` only (zero PII) to track `activeAccountsCount`, `repeatAccountsCount`, `repeatAccountRateBps`, activity count distribution, and per-account spend by currency.
+14. **Period-over-Period Comparison (`compareMetricValue`, `compareExecutivePeriods`):**
+    - Exact integer `absoluteDelta`, direction (`up` | `down` | `flat`), and `changeRateBps` (`null` when previous period is `0`).
+15. **Universal Custom-Stage Funnel & Checkpointed Streaming Rollups (`aggregateCustomStageFunnel`, `StreamingAnalyticsProcessor`, `mergeTenantRollups`):**
+    - Configurable ordered stage funnels for any business pipeline, plus single-pass `O(N)` `AsyncIterable` streaming rollups with `exportCheckpoint`/`fromCheckpoint` resumability and associative multi-worker rollup merging.
+16. **Account Cohort Retention (`aggregateAccountCohortRetention`):**
+    - Groups opaque `references.accountRef` identities by first active `day`/`week`/`month` bucket and computes retention curves (`retentionRateBps`) and currency-separated cohort revenue per offset period, capped with `__other__`.
+17. **Deterministic Anomaly Detection (`detectTimeSeriesAnomalies`):**
+    - Rolling-baseline integer spike detector over `HistoricalTimeSeriesSummary` for `api_error_rate_bps`, `sla_breaches`, `applications_cancelled`, and `api_requests`, emitting `warning` / `critical` alerts with `deviationBps`.
+18. **Service Unit Economics (`aggregateServiceUnitEconomics`):**
+    - Computes per-`(serviceCode, currency)` `grossRevenueMinor`, `gatewayFeesMinor`, `refundedMinor`, `partnerCommissionMinor`, `netContributionMinor`, `netMarginBps`, `revenuePerCompletedMinor`, and `netContributionPerCompletedMinor` using exact integer minor-unit arithmetic.
+19. **Queue & Application Backlog Aging (`aggregateBacklogAging`):**
+    - Tracks non-terminated applications (`submitted`/`status_changed` without `completed`/`cancelled`) as of `asOfIso`, returning open counts, `oldestOpenAgeMs`, age summary percentiles, per-service breakdown, and SLA aging bands (`under_1h`, `from_1h_to_24h`, `from_1d_to_7d`, `over_7d`).

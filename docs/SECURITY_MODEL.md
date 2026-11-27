@@ -17,8 +17,9 @@
    - Batch limit: `500` events / `1 MiB`.
    - Query window limit: `366` days (`DEFAULT_MAX_QUERY_RANGE_DAYS`), strict calendar-validated ISO-8601 timestamps.
    - Pagination limit: `1000` rows per page (`MAX_EXPORT_PAGE_SIZE`).
-4. **Export & CSV Formula Injection Protection:**
-   - Exports are strictly aggregate-only. Raw identifiers (`eventId`, `correlationId`, `accountRef`, `applicationRef`, `paymentRef`, `traceId`, `spanId`) and PII patterns are blocked by `exportAggregateRowsToCsv` and `exportAggregateReportToJson`.
+4. **Export, Small-Cell Suppression & CSV Formula Injection Protection:**
+   - Exports are strictly aggregate-only (`CSV`, `JSON`, and `NDJSON`). Raw identifiers (`eventId`, `correlationId`, `accountRef`, `applicationRef`, `paymentRef`, `traceId`, `spanId`) and PII patterns are blocked by `exportAggregateRowsToCsv`, `exportAggregateRowsToNdjson`, and `exportAggregateReportToJson`.
+   - `SmallCellSuppressionOptions` enforces K-anonymity on `CSV` and `NDJSON` exports by either omitting rows below `minCount` (`mode: "suppress"`) or rolling them into `__suppressed_small_cells__` (`mode: "rollup_other"`).
    - `sanitizeCsvCellValue()` neutralizes OWASP CSV injection vectors (`=`, `+`, `-`, `@`, `\t`, `\r`, including after leading whitespace) by prefixing `'` and applying RFC 4180 quoting.
 5. **No Production Connections or Secrets:**
    - Zero runtime dependencies, zero embedded credentials, zero live database/cloud SDK connections.

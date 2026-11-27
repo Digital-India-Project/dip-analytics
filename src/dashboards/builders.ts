@@ -1,10 +1,13 @@
 import {
+  aggregateAccountActivity,
   aggregateApiMetrics,
   aggregateApplicationFunnel,
   aggregateApplicationStatusDistribution,
+  aggregateGeographicAnalytics,
   aggregateOperatorWorkload,
   aggregatePartnerPerformance,
   aggregatePaymentMetrics,
+  aggregatePaymentReconciliation,
   aggregateProcessingAndSla,
   aggregateRevenueAndRefunds,
   aggregateServicePerformance,
@@ -97,6 +100,13 @@ export function buildExecutiveOverviewDashboard(
     warnings.push("Multiple currencies detected; revenue totals remain separated by currency.");
   }
 
+  const accountActivity = aggregateAccountActivity(events, query, {
+    maxAccounts: options.maxGroups ?? 100,
+  });
+  const geographic = aggregateGeographicAnalytics(events, query, {
+    maxRegions: options.maxGroups ?? 100,
+  });
+
   return {
     metadata: buildMetadata("executive_overview", query, events, options, warnings),
     tenantId: query.tenantId,
@@ -110,6 +120,8 @@ export function buildExecutiveOverviewDashboard(
       p95LatencyMs: api.overallLatency.p95Ms,
     },
     trend,
+    accountActivity,
+    geographic,
   };
 }
 
@@ -122,6 +134,9 @@ export function buildApplicationOperationsDashboard(
   const funnel = aggregateApplicationFunnel(events, query, serviceFilter);
   const statusDistribution = aggregateApplicationStatusDistribution(events, query, serviceFilter);
   const processingAndSla = aggregateProcessingAndSla(events, query, serviceFilter);
+  const geographic = aggregateGeographicAnalytics(events, query, {
+    maxRegions: options.maxGroups ?? 100,
+  });
   const trend = aggregateTimeSeries(events, query, {
     granularity: options.granularity ?? "day",
     timeZone: options.timeZone ?? "UTC",
@@ -143,6 +158,7 @@ export function buildApplicationOperationsDashboard(
     funnel,
     statusDistribution,
     processingAndSla,
+    geographic,
     trend,
   };
 }
@@ -159,6 +175,7 @@ export function buildFinanceDashboard(
     currencyFilter ? { currencyFilter } : {},
   );
   const paymentMetrics = aggregatePaymentMetrics(events, query, currencyFilter);
+  const reconciliation = aggregatePaymentReconciliation(events, query, currencyFilter);
   const trend = aggregateTimeSeries(events, query, {
     granularity: options.granularity ?? "day",
     timeZone: options.timeZone ?? "UTC",
@@ -168,12 +185,20 @@ export function buildFinanceDashboard(
   if (revenueAndRefunds.multiCurrencyDetected) {
     warnings.push("Multi-currency financial streams separated by ISO-4217 currency code.");
   }
+  if (
+    reconciliation.overRefundedCount > 0 ||
+    reconciliation.orphanedRefundCount > 0 ||
+    reconciliation.currencyDiscrepancyCount > 0
+  ) {
+    warnings.push("Payment reconciliation discrepancies detected (orphaned/over-refunded/currency mismatch).");
+  }
 
   return {
     metadata: buildMetadata("finance", query, events, options, warnings),
     tenantId: query.tenantId,
     revenueAndRefunds,
     paymentMetrics,
+    reconciliation,
     trend,
   };
 }

@@ -162,6 +162,7 @@ export function scanForPrivacyViolations(
   value: unknown,
   path: string = "$",
   depth: number = 0,
+  visited: WeakSet<object> = new WeakSet<object>(),
 ): PiiViolation[] {
   const violations: PiiViolation[] = [];
 
@@ -191,10 +192,19 @@ export function scanForPrivacyViolations(
     return violations;
   }
 
+  if (visited.has(value)) {
+    violations.push({ path, reason: "Circular object reference is prohibited." });
+    return violations;
+  }
+  visited.add(value);
+
   if (Array.isArray(value)) {
     for (let i = 0; i < value.length; i++) {
-      violations.push(...scanForPrivacyViolations(value[i], `${path}[${i}]`, depth + 1));
+      violations.push(
+        ...scanForPrivacyViolations(value[i], `${path}[${i}]`, depth + 1, visited),
+      );
     }
+    visited.delete(value);
     return violations;
   }
 
@@ -218,14 +228,77 @@ export function scanForPrivacyViolations(
       continue;
     }
 
-    violations.push(...scanForPrivacyViolations(record[key], childPath, depth + 1));
+    violations.push(
+      ...scanForPrivacyViolations(record[key], childPath, depth + 1, visited),
+    );
   }
 
+  visited.delete(value);
   return violations;
 }
 
+function measureBoundedJsonBytes(
+  value: unknown,
+  path: string,
+  maxBytes: number,
+  visited: WeakSet<object>,
+): number {
+  if (value === null || value === undefined) return 4;
+  if (typeof value === "boolean") return value ? 4 : 5;
+  if (typeof value === "number") return String(value).length;
+  if (typeof value === "string") {
+    const bytes = Buffer.byteLength(value, "utf8") + 2;
+    if (bytes > maxBytes) {
+      throw new InputSizeLimitError(
+        `Payload byte size exceeds maximum allowed (${maxBytes} bytes).`,
+      );
+    }
+    return bytes;
+  }
+  if (typeof value !== "object") {
+    return 0;
+  }
+  if (visited.has(value)) {
+    throw new PrivacyViolationError([
+      { path, reason: "Circular object reference is prohibited." },
+    ]);
+  }
+  visited.add(value);
+  let total = 2; // [] or {}
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i++) {
+      total += measureBoundedJsonBytes(value[i], `${path}[${i}]`, maxBytes, visited) + 1;
+      if (total > maxBytes) {
+        throw new InputSizeLimitError(
+          `Payload byte size exceeds maximum allowed (${maxBytes} bytes).`,
+        );
+      }
+    }
+  } else {
+    const record = value as Record<string, unknown>;
+    for (const key of Object.keys(record)) {
+      total +=
+        Buffer.byteLength(key, "utf8") +
+        4 +
+        measureBoundedJsonBytes(record[key], `${path}.${key}`, maxBytes, visited);
+      if (total > maxBytes) {
+        throw new InputSizeLimitError(
+          `Payload byte size exceeds maximum allowed (${maxBytes} bytes).`,
+        );
+      }
+    }
+  }
+  visited.delete(value);
+  return total;
+}
+
 export function assertNoPrivacyViolations(value: unknown, rootPath: string = "$"): void {
-  const byteSize = Buffer.byteLength(JSON.stringify(value) ?? "", "utf8");
+  const byteSize = measureBoundedJsonBytes(
+    value,
+    rootPath,
+    MAX_EVENT_BYTES,
+    new WeakSet<object>(),
+  );
   if (byteSize > MAX_EVENT_BYTES) {
     throw new InputSizeLimitError(
       `Payload byte size (${byteSize} bytes) exceeds maximum allowed (${MAX_EVENT_BYTES} bytes).`,

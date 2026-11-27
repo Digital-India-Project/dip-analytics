@@ -10,3 +10,4 @@ export * from "./aggregations/index.js";
 export * from "./storage/index.js";
 export * from "./reporting/index.js";
 export * from "./dashboards/index.js";
+export * from "./ecosystem/index.js";

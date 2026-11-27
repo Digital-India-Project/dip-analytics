@@ -42,5 +42,8 @@ jobs:
       - name: Build package
         run: npm run build
 
+      - name: Run 100k-event synthetic benchmark
+        run: npm run benchmark
+
       - name: Dependency security audit
         run: npm audit --audit-level=high

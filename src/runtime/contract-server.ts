@@ -20,6 +20,34 @@ function loadIntegrationManifest(): unknown {
   }
 }
 
+const CAPABILITIES_CATALOG = [
+  "application_funnel",
+  "custom_stage_funnel",
+  "application_status_distribution",
+  "service_performance",
+  "processing_time_and_sla",
+  "revenue_and_refunds",
+  "payment_success_failure_rates",
+  "payment_reconciliation",
+  "partner_performance_and_commissions",
+  "operator_and_queue_workload",
+  "account_activity_metrics",
+  "geographic_regional_analytics",
+  "api_usage_and_error_rates",
+  "historical_time_series",
+  "period_over_period_comparison",
+  "streaming_mergeable_rollups",
+  "checkpointed_streaming",
+  "account_cohort_retention",
+  "anomaly_detection",
+  "service_unit_economics",
+  "queue_backlog_aging",
+  "small_cell_k_anonymity_suppression",
+  "schema_upcaster_registry",
+  "ecosystem_bridges",
+  "csv_json_ndjson_aggregate_exports",
+] as const;
+
 /**
  * Lightweight zero-dependency contract inspection HTTP server for runtime health
  * checks. Not a dashboard UI (UI belongs exclusively in dip-ui).
@@ -30,7 +58,11 @@ export function startContractInspectionServer(): void {
 
     if (req.method !== "GET") {
       res.writeHead(405, { "content-type": "application/json; charset=utf-8" });
-      res.end(JSON.stringify({ error: "Method not allowed. Read-only contract inspection endpoint." }));
+      res.end(
+        JSON.stringify({
+          error: "Method not allowed. Read-only contract inspection endpoint.",
+        }),
+      );
       return;
     }
 
@@ -42,6 +74,7 @@ export function startContractInspectionServer(): void {
           package: "@digital-india-project/dip-analytics",
           eventSchemaVersion: CURRENT_EVENT_SCHEMA_VERSION,
           dashboardContractVersion: DASHBOARD_CONTRACT_VERSION,
+          capabilitiesCount: CAPABILITIES_CATALOG.length,
         }),
       );
       return;
@@ -68,18 +101,35 @@ export function startContractInspectionServer(): void {
       return;
     }
 
+    if (path === "/capabilities") {
+      res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+      res.end(
+        JSON.stringify(
+          {
+            package: "@digital-india-project/dip-analytics",
+            capabilities: CAPABILITIES_CATALOG,
+            supportedEventTypes: ANALYTICS_EVENT_TYPES,
+          },
+          null,
+          2,
+        ),
+      );
+      return;
+    }
+
     if (path === "/") {
       res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
       res.end(
         JSON.stringify(
           {
             service: "@digital-india-project/dip-analytics",
-            role: "Domain contracts, validation, privacy enforcement, deterministic aggregations, and reporting library",
+            role: "Universal, tenant-aware analytics domain, validation, privacy enforcement, streaming rollups, and reporting library",
             note: "Dashboard UI belongs in dip-ui; API authorization belongs in dip-api.",
             eventSchemaVersion: CURRENT_EVENT_SCHEMA_VERSION,
             dashboardContractVersion: DASHBOARD_CONTRACT_VERSION,
             supportedEventTypes: ANALYTICS_EVENT_TYPES,
-            endpoints: ["/health", "/manifest", "/schemas"],
+            capabilities: CAPABILITIES_CATALOG,
+            endpoints: ["/health", "/manifest", "/schemas", "/capabilities"],
           },
           null,
           2,

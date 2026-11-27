@@ -28,20 +28,22 @@
 
 ```
 src/contracts/events.ts        (versioned event types, compat check, base error)
+src/contracts/upcasters.ts     (EventUpcasterRegistry for multi-step schema upgrades)
         │
         ├── src/schemas/event-schemas.ts    (JSON Schema Draft 2020-12 exports)
         ├── src/telemetry/context.ts        (W3C traceparent + PII-free OTEL attributes)
         ├── src/utils/time.ts               (strict ISO-8601, date ranges, IANA tz buckets)
         ├── src/utils/money.ts              (integer minor units, BigInt bps, currency guard)
-        ├── src/privacy/pii-guard.ts        (recursive PII/doc/prototype-pollution scan)
+        ├── src/privacy/pii-guard.ts        (recursive PII/doc/circular/prototype-pollution scan)
         └── src/privacy/tenant-boundary.ts  (TenantAuthorizationContext -> AuthorizedTenantQuery)
                 │
                 ├── src/validation/event-validator.ts
                 ├── src/reliability/index.ts        (SHA-256 fingerprint, sort, dedupe, topN cap)
-                ├── src/aggregations/*              (10 deterministic aggregation modules)
+                ├── src/aggregations/*              (cohort, anomaly, unit-econ, backlog, streaming, etc.)
                 ├── src/storage/*                   (ports + test-only InMemoryAnalyticsStore)
-                ├── src/reporting/*                 (filters, pagination, CSV/JSON exporters)
-                └── src/dashboards/*                (7 dashboard contracts + builders)
+                ├── src/reporting/*                 (filters, pagination, k-anonymity, CSV/JSON/NDJSON)
+                ├── src/dashboards/*                (7 dashboard contracts + builders)
+                └── src/ecosystem/*                 (DIPINDIA, dip-api, dip-automation bridges)
 ```
 
 ---
@@ -58,9 +60,10 @@ src/contracts/events.ts        (versioned event types, compat check, base error)
 ## 4. Runtime Contract Inspection Server
 
 For container/preview verification in Node.js 22 (`npm run dev` / `npm start`), `src/runtime/contract-server.ts` exposes a minimal read-only HTTP server on `0.0.0.0:3000` with endpoints:
-- `GET /` — Package role, contract versions, and supported event types.
-- `GET /health` — Service health and schema versions.
+- `GET /` — Package role, contract versions, capabilities, and supported event types.
+- `GET /health` — Service health, schema versions, and capability count.
 - `GET /manifest` — Contents of `integration/manifest.json`.
 - `GET /schemas` — Draft 2020-12 JSON Schemas for envelope and payloads.
+- `GET /capabilities` — Machine-readable catalog of analytics capabilities and event types.
 
 It is strictly a contract inspection endpoint and **not** a dashboard UI.

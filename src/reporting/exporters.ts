@@ -74,10 +74,64 @@ function assertAggregateOnlyExportPayload(value: unknown, path: string = "$"): v
   }
 }
 
+export interface SmallCellSuppressionOptions<TRow extends Record<string, unknown>> {
+  readonly countField: keyof TRow & string;
+  readonly minCount: number;
+  readonly mode?: "suppress" | "rollup_other";
+  readonly labelField?: keyof TRow & string;
+  readonly suppressedLabel?: string;
+}
+
+function applySmallCellSuppression<TRow extends Record<string, unknown>>(
+  rows: readonly TRow[],
+  suppression?: SmallCellSuppressionOptions<TRow>,
+): { readonly rows: TRow[]; readonly suppressedRowCount: number } {
+  if (!suppression) {
+    return { rows: [...rows], suppressedRowCount: 0 };
+  }
+  const minCount = Math.max(1, suppression.minCount);
+  const mode = suppression.mode ?? "suppress";
+  const kept: TRow[] = [];
+  const small: TRow[] = [];
+
+  for (const row of rows) {
+    const rawCount = row[suppression.countField];
+    const countVal = typeof rawCount === "number" ? rawCount : 0;
+    if (countVal < minCount) {
+      small.push(row);
+    } else {
+      kept.push(row);
+    }
+  }
+
+  if (small.length === 0 || mode === "suppress") {
+    return { rows: kept, suppressedRowCount: small.length };
+  }
+
+  let summedCount = 0;
+  for (const r of small) {
+    const val = r[suppression.countField];
+    summedCount += typeof val === "number" ? val : 0;
+  }
+
+  const rollupRow: Record<string, unknown> = {
+    ...(suppression.labelField
+      ? { [suppression.labelField]: suppression.suppressedLabel ?? "__suppressed_small_cells__" }
+      : {}),
+    [suppression.countField]: summedCount,
+  };
+
+  return {
+    rows: [...kept, rollupRow as TRow],
+    suppressedRowCount: small.length,
+  };
+}
+
 export interface CsvExportOptions<TRow extends Record<string, unknown>> {
   readonly columns: readonly (keyof TRow & string)[];
   readonly pagination?: PaginationRequest;
   readonly expectedTenantId?: string;
+  readonly smallCellSuppression?: SmallCellSuppressionOptions<TRow>;
 }
 
 export interface CsvExportOutput {
@@ -85,6 +139,7 @@ export interface CsvExportOutput {
   readonly contentType: "text/csv; charset=utf-8";
   readonly rowCount: number;
   readonly totalRows: number;
+  readonly suppressedRowCount: number;
   readonly page: number;
   readonly totalPages: number;
   readonly hasNextPage: boolean;
@@ -116,7 +171,11 @@ export function exportAggregateRowsToCsv<TRow extends Record<string, unknown>>(
   }
 
   assertAggregateOnlyExportPayload(rows);
-  const paged: PaginatedResult<TRow> = paginateRows(rows, options.pagination);
+  const { rows: safeRows, suppressedRowCount } = applySmallCellSuppression(
+    rows,
+    options.smallCellSuppression,
+  );
+  const paged: PaginatedResult<TRow> = paginateRows(safeRows, options.pagination);
 
   const headerLine = options.columns.map((c) => sanitizeCsvCellValue(c)).join(",");
   const dataLines = paged.items.map((row) =>
@@ -128,6 +187,7 @@ export function exportAggregateRowsToCsv<TRow extends Record<string, unknown>>(
     contentType: "text/csv; charset=utf-8",
     rowCount: paged.items.length,
     totalRows: paged.totalItems,
+    suppressedRowCount,
     page: paged.page,
     totalPages: paged.totalPages,
     hasNextPage: paged.hasNextPage,
@@ -166,5 +226,58 @@ export function exportAggregateReportToJson<
     contractVersion: options.contractVersion ?? "1.0.0",
     aggregateOnly: true,
     report,
+  };
+}
+
+export interface NdjsonExportOutput {
+  readonly tenantId: string;
+  readonly contentType: "application/x-ndjson; charset=utf-8";
+  readonly rowCount: number;
+  readonly totalRows: number;
+  readonly suppressedRowCount: number;
+  readonly page: number;
+  readonly totalPages: number;
+  readonly hasNextPage: boolean;
+  readonly ndjson: string;
+}
+
+export function exportAggregateRowsToNdjson<TRow extends Record<string, unknown>>(
+  rows: readonly TRow[],
+  authContext: TenantAuthorizationContext,
+  options: {
+    readonly pagination?: PaginationRequest;
+    readonly expectedTenantId?: string;
+    readonly smallCellSuppression?: SmallCellSuppressionOptions<TRow>;
+  } = {},
+): NdjsonExportOutput {
+  assertTrustedAuthContext(authContext, "analytics:read");
+
+  if (
+    options.expectedTenantId !== undefined &&
+    options.expectedTenantId !== authContext.authenticatedTenantId
+  ) {
+    throw new TenantBoundaryViolationError(
+      `NDJSON export tenant mismatch: expected "${options.expectedTenantId}", authenticated "${authContext.authenticatedTenantId}".`,
+    );
+  }
+
+  assertAggregateOnlyExportPayload(rows);
+  const { rows: safeRows, suppressedRowCount } = applySmallCellSuppression(
+    rows,
+    options.smallCellSuppression,
+  );
+  const paged: PaginatedResult<TRow> = paginateRows(safeRows, options.pagination);
+  const ndjson = paged.items.map((row) => JSON.stringify(row)).join("\n");
+
+  return {
+    tenantId: authContext.authenticatedTenantId,
+    contentType: "application/x-ndjson; charset=utf-8",
+    rowCount: paged.items.length,
+    totalRows: paged.totalItems,
+    suppressedRowCount,
+    page: paged.page,
+    totalPages: paged.totalPages,
+    hasNextPage: paged.hasNextPage,
+    ndjson,
   };
 }

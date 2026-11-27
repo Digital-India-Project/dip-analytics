@@ -240,6 +240,8 @@ export function formatBucketKey(
   }
 }
 
+export const MAX_TIME_SERIES_BUCKETS = 10_000;
+
 /**
  * Generates ordered bucket keys covering [fromMs, toMs) in the given timezone.
  * Steps at hourly intervals for 'hour', 12-hour checkpoints for 'day'/'week'/'month'
@@ -250,6 +252,7 @@ export function enumerateBucketKeys(
   toMs: number,
   granularity: TimeGranularity,
   timeZone: string = "UTC",
+  maxBuckets: number = MAX_TIME_SERIES_BUCKETS,
 ): string[] {
   assertValidTimezone(timeZone);
   if (fromMs >= toMs) {
@@ -263,6 +266,11 @@ export function enumerateBucketKeys(
   for (let t = fromMs; t < toMs; t += stepMs) {
     const key = formatBucketKey(t, granularity, timeZone);
     if (!seen.has(key)) {
+      if (keys.length >= maxBuckets) {
+        throw new DateRangeViolationError(
+          `Requested ${granularity} time-series exceeds maximum allowed ${maxBuckets} buckets. Use coarser granularity or a narrower window.`,
+        );
+      }
       seen.add(key);
       keys.push(key);
     }
@@ -270,6 +278,11 @@ export function enumerateBucketKeys(
   // Ensure the final instant inside [fromMs, toMs) is represented
   const lastKey = formatBucketKey(toMs - 1, granularity, timeZone);
   if (!seen.has(lastKey)) {
+    if (keys.length >= maxBuckets) {
+      throw new DateRangeViolationError(
+        `Requested ${granularity} time-series exceeds maximum allowed ${maxBuckets} buckets.`,
+      );
+    }
     seen.add(lastKey);
     keys.push(lastKey);
   }

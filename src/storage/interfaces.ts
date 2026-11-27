@@ -64,6 +64,10 @@ export interface AnalyticsEventStorePort {
     authorizedQuery: AuthorizedTenantQuery,
     filters?: StorageQueryFilters,
   ): Promise<readonly AnyAnalyticsEvent[]>;
+  iterateByTenant(
+    authorizedQuery: AuthorizedTenantQuery,
+    filters?: StorageQueryFilters,
+  ): AsyncIterable<AnyAnalyticsEvent>;
   deleteEventsOlderThan(
     tenantId: string,
     cutoffIso: string,

@@ -1,6 +1,6 @@
 # `@digital-india-project/dip-analytics`
 
-Secure, tenant-aware analytics domain, versioned event contracts, deterministic aggregations, and aggregate reporting foundation for **Digital India Project**.
+Universal, secure, tenant-aware analytics domain, versioned event contracts, single-pass streaming rollups, deterministic aggregations, and aggregate reporting foundation for **Digital India Project**.
 
 > **Scope:** Pure TypeScript domain & contract library (`dependencies: {}`, Node.js `>=22.0.0 <23.0.0`). Independent of any specific dashboard UI (`dip-ui`), API gateway (`dip-api`), cloud provider, or production database.
 
@@ -8,15 +8,18 @@ Secure, tenant-aware analytics domain, versioned event contracts, deterministic 
 
 ## Implemented Capabilities
 
-- **Versioned Event Contracts (`v1.0.0`) & JSON Schemas:** 13 strongly typed business and operational event contracts (`application.*`, `payment.*`, `partner.*`, `operator.action_recorded`, `sla.threshold_breached`, `api.request_recorded`) with Draft 2020-12 JSON Schema exports and W3C OpenTelemetry trace context validation.
+- **Versioned Event Contracts (`v1.0.0`), Upcasters & JSON Schemas:** 13 strongly typed business and operational event contracts (`application.*`, `payment.*`, `partner.*`, `operator.action_recorded`, `sla.threshold_breached`, `api.request_recorded`), `EventUpcasterRegistry` for deterministic legacy schema migrations, Draft 2020-12 JSON Schema exports, and W3C OpenTelemetry trace context validation.
 - **Privacy & Tenant Isolation Boundaries:**
   - Trusted backend `TenantAuthorizationContext` (`issuedBy: "dip-api" | "dip-security"`) required to mint branded `AuthorizedTenantQuery` objects; browser-supplied `tenantId` overrides are rejected.
-  - Deep recursive PII, government ID (Aadhaar/PAN/passport), credential, uploaded document/data-URI, prototype-pollution, input-size (`16 KiB`), and date-range (`366` days) guards.
-- **10 Deterministic Aggregation Modules:**
-  - Application funnel, application status distribution & transitions, service performance, processing time percentiles & SLA bottlenecks, revenue & refunds, partner performance & commissions, operator workload, payment success/failure rates, API volume/error/latency metrics, and timezone-aware historical time-series.
-  - Integer minor-unit financial arithmetic (`BigInt`-backed) with strict currency separation (`CurrencyMismatchError`).
-- **Storage & Ingestion Ports:** Database-agnostic interfaces for event ingestion, persistence, SHA-256 idempotency conflict detection, tenant-scoped reads, retention sweeps, and aggregate snapshots, plus a test-only `InMemoryAnalyticsStore`.
-- **Aggregate-Only Reporting & Exports:** Date-range, service, partner, region, and currency filters; bounded pagination (`<= 1000`); JSON report export; and RFC 4180 CSV export with OWASP spreadsheet formula injection neutralization.
+  - Deep recursive PII, government ID (Aadhaar/PAN/passport), credential, uploaded document/data-URI, circular-reference, prototype-pollution, input-size (`16 KiB`), and date-range (`366` days / `10,000` bucket cap) guards.
+  - Optional K-anonymity small-cell suppression (`suppress` or `rollup_other`) in CSV and NDJSON exports.
+- **Deterministic & Scalable Analytics Capabilities:**
+  - Application funnel & universal custom-stage funnel (`aggregateCustomStageFunnel`), application status distribution & transitions, **open-application backlog & SLA aging histogram** (`aggregateBacklogAging`), service performance, processing time percentiles & SLA bottlenecks.
+  - Integer minor-unit (`BigInt`-backed) revenue & refunds, **service unit economics & net contribution margin** (`aggregateServiceUnitEconomics`), payment success/failure rates, **payment reconciliation** (`settled`, `unsettled`, `orphanedRefund`, `overRefunded`, `currencyDiscrepancy`), partner performance & commissions, operator & queue workload.
+  - **Account activity metrics** & **cohort retention curves** (`aggregateAccountCohortRetention` using opaque `accountRef` only), **geographic & regional aggregate analytics** (`regionCode`), API volume/error/latency metrics, IANA timezone-aware historical time-series, **period-over-period comparisons**, and **deterministic rolling-baseline anomaly detection** (`detectTimeSeriesAnomalies`).
+  - **Single-pass `StreamingAnalyticsProcessor` (with `exportCheckpoint`/`fromCheckpoint` resumability) & associative `mergeTenantRollups`** for `AsyncIterable` streams and horizontally scalable distributed rollups.
+- **Storage, Ecosystem Bridges & Ingestion Ports:** Database-agnostic interfaces for event ingestion, persistence, `AsyncIterable` cursor reads (`iterateByTenant`), SHA-256 idempotency conflict detection, retention sweeps, and aggregate snapshots; test-only `InMemoryAnalyticsStore`; and framework-agnostic bridges (`src/ecosystem/bridges.ts`) for `DIPINDIA`, `dip-api`, and `dip-automation`.
+- **Aggregate-Only Reporting & Exports:** Date-range, service, partner, region, and currency filters; bounded pagination (`<= 1000`); JSON & NDJSON (`application/x-ndjson`) report exports; and RFC 4180 CSV export with OWASP spreadsheet formula injection neutralization and K-anonymity small-cell suppression.
 - **7 Dashboard Response Contracts:** Typed response models and builders for `dip-ui` and `dip-api` (Executive Overview, Application Operations, Finance, Partner Management, Operator Performance, Service Performance, API Analytics).
 
 ---
@@ -29,9 +32,10 @@ npm run typecheck
 npm run lint
 npm test
 npm run build
+npm run benchmark
 ```
 
-For local container/contract inspection on `http://0.0.0.0:3000` (`/health`, `/manifest`, `/schemas`):
+For local contract inspection on `http://0.0.0.0:3000` (`/health`, `/manifest`, `/schemas`, `/capabilities`):
 
 ```bash
 npm run dev

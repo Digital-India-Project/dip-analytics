@@ -236,6 +236,16 @@ export class InMemoryAnalyticsStore
     return sortEventsDeterministically(matching);
   }
 
+  public async *iterateByTenant(
+    authorizedQuery: AuthorizedTenantQuery,
+    filters: StorageQueryFilters = {},
+  ): AsyncIterable<AnyAnalyticsEvent> {
+    const events = await this.queryByTenant(authorizedQuery, filters);
+    for (const ev of events) {
+      yield ev;
+    }
+  }
+
   public async deleteEventsOlderThan(
     tenantId: string,
     cutoffIso: string,

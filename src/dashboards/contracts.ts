@@ -1,11 +1,14 @@
 import type {
+  AccountActivityReport,
   ApiMetricsSummary,
   ApplicationFunnelSummary,
   ApplicationStatusDistribution,
+  GeographicAnalyticsReport,
   HistoricalTimeSeriesSummary,
   OperatorWorkloadReport,
   PartnerPerformanceReport,
   PaymentMetricsSummary,
+  PaymentReconciliationReport,
   ProcessingAndSlaSummary,
   RevenueAndRefundsReport,
   ServicePerformanceReport,
@@ -51,6 +54,8 @@ export interface ExecutiveOverviewDashboard {
     readonly p95LatencyMs: number | null;
   };
   readonly trend: HistoricalTimeSeriesSummary;
+  readonly accountActivity: AccountActivityReport;
+  readonly geographic: GeographicAnalyticsReport;
 }
 
 export interface ApplicationOperationsDashboard {
@@ -59,6 +64,7 @@ export interface ApplicationOperationsDashboard {
   readonly funnel: ApplicationFunnelSummary;
   readonly statusDistribution: ApplicationStatusDistribution;
   readonly processingAndSla: ProcessingAndSlaSummary;
+  readonly geographic: GeographicAnalyticsReport;
   readonly trend: HistoricalTimeSeriesSummary;
 }
 
@@ -67,6 +73,7 @@ export interface FinanceDashboard {
   readonly tenantId: string;
   readonly revenueAndRefunds: RevenueAndRefundsReport;
   readonly paymentMetrics: PaymentMetricsSummary;
+  readonly reconciliation: PaymentReconciliationReport;
   readonly trend: HistoricalTimeSeriesSummary;
 }
 

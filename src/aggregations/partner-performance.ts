@@ -2,7 +2,12 @@ import type { AnyAnalyticsEvent } from "../contracts/events.js";
 import type { AuthorizedTenantQuery } from "../privacy/tenant-boundary.js";
 import { capCardinality } from "../reliability/index.js";
 import { addMinorUnits, assertValidCurrencyCode, computeBasisPoints } from "../utils/money.js";
-import { prepareWindowEvents, summarizeDurations, type DurationSummary } from "./math.js";
+import {
+  mergeDurationSummaries,
+  prepareWindowEvents,
+  summarizeDurations,
+  type DurationSummary,
+} from "./math.js";
 
 export interface PartnerPerformanceRow {
   readonly partnerRef: string;
@@ -164,7 +169,7 @@ export function aggregatePartnerPerformance(
         workReturnedCount,
         workReassignedCount,
         completionRateBps: computeBasisPoints(workCompletedCount, denom),
-        turnaround: summarizeDurations([]),
+        turnaround: mergeDurationSummaries(dropped.map((d) => d.turnaround)),
         commissionsByCurrencyMinor: commissionsObj,
       };
     },

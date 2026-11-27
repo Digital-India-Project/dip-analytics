@@ -2,7 +2,12 @@ import type { AnyAnalyticsEvent } from "../contracts/events.js";
 import type { AuthorizedTenantQuery } from "../privacy/tenant-boundary.js";
 import { capCardinality } from "../reliability/index.js";
 import { computeBasisPoints } from "../utils/money.js";
-import { prepareWindowEvents, summarizeDurations, type DurationSummary } from "./math.js";
+import {
+  mergeDurationSummaries,
+  prepareWindowEvents,
+  summarizeDurations,
+  type DurationSummary,
+} from "./math.js";
 
 export interface ServicePerformanceRow {
   readonly serviceCode: string;
@@ -123,7 +128,7 @@ export function aggregateServicePerformance(
         slaBreachCount,
         completionRateBps: computeBasisPoints(completedCount, submittedCount),
         approvalRateBps: computeBasisPoints(approvedCount, completedCount),
-        duration: summarizeDurations([]),
+        duration: mergeDurationSummaries(dropped.map((d) => d.duration)),
       };
     },
     { maxGroups: maxServices },

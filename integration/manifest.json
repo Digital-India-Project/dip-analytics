@@ -39,6 +39,7 @@
     "piiAndDocumentsProhibited": true,
     "monetaryUnit": "integer_minor_units",
     "csvFormulaInjectionProtection": true,
+    "smallCellKAnonymitySuppressionSupported": true,
     "aggregateOnlyExports": true,
     "productionConnectionsIncluded": false
   },
@@ -51,7 +52,7 @@
       "contractVersion": "1.0.0",
       "authRequirement": "Service-authenticated TenantAuthorizationContext (scope: analytics:ingest)",
       "tenantBoundary": "event.tenantId === authContext.authenticatedTenantId",
-      "status": "contract_defined_and_tested_locally_upstream_pending"
+      "status": "builder_and_contract_defined_and_tested_locally_upstream_pending"
     },
     {
       "sourceRepo": "dip-api",
@@ -61,7 +62,7 @@
       "contractVersion": "1.0.0",
       "authRequirement": "Verified TenantAuthorizationContext (issuedBy: dip-api | dip-security)",
       "tenantBoundary": "Branded AuthorizedTenantQuery derived from authenticatedTenantId",
-      "status": "contract_defined_and_tested_locally_api_wiring_pending"
+      "status": "handler_bridge_and_contract_defined_and_tested_locally_api_wiring_pending"
     },
     {
       "sourceRepo": "dip-core",
@@ -101,7 +102,7 @@
       "contractVersion": "1.0.0",
       "authRequirement": "Tenant-scoped service context (analytics:read, analytics:ingest, analytics:admin)",
       "tenantBoundary": "Per-tenant snapshot and retention execution",
-      "status": "interfaces_and_in_memory_tested_scheduler_pending"
+      "status": "runner_bridge_and_in_memory_tested_scheduler_pending"
     },
     {
       "sourceRepo": "dip-analytics",

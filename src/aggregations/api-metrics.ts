@@ -2,7 +2,12 @@ import type { AnyAnalyticsEvent, HttpMethod } from "../contracts/events.js";
 import type { AuthorizedTenantQuery } from "../privacy/tenant-boundary.js";
 import { capCardinality } from "../reliability/index.js";
 import { computeBasisPoints } from "../utils/money.js";
-import { prepareWindowEvents, summarizeDurations, type DurationSummary } from "./math.js";
+import {
+  mergeDurationSummaries,
+  prepareWindowEvents,
+  summarizeDurations,
+  type DurationSummary,
+} from "./math.js";
 
 export interface ApiEndpointMetricsRow {
   readonly routeKey: string;
@@ -142,7 +147,7 @@ export function aggregateApiMetrics(
         errorCount: err,
         errorRateBps: computeBasisPoints(err, requestCount),
         serverErrorRateBps: computeBasisPoints(s5, requestCount),
-        latency: summarizeDurations([]),
+        latency: mergeDurationSummaries(dropped.map((d) => d.latency)),
       };
     },
     { maxGroups: options.maxEndpoints ?? 100 },
