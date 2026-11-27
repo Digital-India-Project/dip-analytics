@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "manifestVersion": "1.0.0",
+  "package": {
+    "name": "@digital-india-project/dip-analytics",
+    "version": "0.1.0",
+    "runtime": "nodejs-22",
+    "runtimeDependencies": [],
+    "eventSchemaVersion": "1.0.0",
+    "dashboardContractVersion": "1.0.0"
+  },
+  "supportedEventTypes": [
+    "application.submitted",
+    "application.status_changed",
+    "application.completed",
+    "application.cancelled",
+    "payment.initiated",
+    "payment.succeeded",
+    "payment.failed",
+    "payment.refunded",
+    "partner.assigned",
+    "partner.completed_work",
+    "operator.action_recorded",
+    "sla.threshold_breached",
+    "api.request_recorded"
+  ],
+  "dashboardContracts": [
+    "executive_overview",
+    "application_operations",
+    "finance",
+    "partner_management",
+    "operator_performance",
+    "service_performance",
+    "api_analytics"
+  ],
+  "securityInvariants": {
+    "tenantIsolationRequired": true,
+    "browserTenantIdTrusted": false,
+    "piiAndDocumentsProhibited": true,
+    "monetaryUnit": "integer_minor_units",
+    "csvFormulaInjectionProtection": true,
+    "aggregateOnlyExports": true,
+    "productionConnectionsIncluded": false
+  },
+  "integrations": [
+    {
+      "sourceRepo": "DIPINDIA",
+      "targetRepo": "dip-analytics",
+      "direction": "inbound_events",
+      "contractOwner": "shared",
+      "contractVersion": "1.0.0",
+      "authRequirement": "Service-authenticated TenantAuthorizationContext (scope: analytics:ingest)",
+      "tenantBoundary": "event.tenantId === authContext.authenticatedTenantId",
+      "status": "contract_defined_and_tested_locally_upstream_pending"
+    },
+    {
+      "sourceRepo": "dip-api",
+      "targetRepo": "dip-analytics",
+      "direction": "ingestion_and_reporting",
+      "contractOwner": "dip-api (transport/auth) + dip-analytics (domain/validation/query)",
+      "contractVersion": "1.0.0",
+      "authRequirement": "Verified TenantAuthorizationContext (issuedBy: dip-api | dip-security)",
+      "tenantBoundary": "Branded AuthorizedTenantQuery derived from authenticatedTenantId",
+      "status": "contract_defined_and_tested_locally_api_wiring_pending"
+    },
+    {
+      "sourceRepo": "dip-core",
+      "targetRepo": "dip-analytics",
+      "direction": "shared_identifiers_and_schemas",
+      "contractOwner": "dip-core (canonical IDs) + dip-analytics (analytics schemas)",
+      "contractVersion": "1.0.0",
+      "authRequirement": "none (compile-time & schema-time contract)",
+      "tenantBoundary": "tenantId ^[a-zA-Z0-9_-]{1,64}$",
+      "status": "contract_defined_cross_repo_sync_pending"
+    },
+    {
+      "sourceRepo": "dip-security",
+      "targetRepo": "dip-analytics",
+      "direction": "security_and_authorization",
+      "contractOwner": "dip-security (policy/tokens) + dip-analytics (boundary enforcement)",
+      "contractVersion": "1.0.0",
+      "authRequirement": "Trusted issuer claim + explicit scopes (analytics:read|ingest|admin)",
+      "tenantBoundary": "Fail-closed cross-tenant rejection",
+      "status": "contract_defined_and_tested_locally_issuer_wiring_pending"
+    },
+    {
+      "sourceRepo": "dip-analytics",
+      "targetRepo": "dip-ui",
+      "direction": "dashboard_response_contracts",
+      "contractOwner": "dip-analytics (response schemas) + dip-ui (presentation)",
+      "contractVersion": "1.0.0",
+      "authRequirement": "Mediated via dip-api; dip-ui has zero direct storage access",
+      "tenantBoundary": "metadata.tenantId scoped by dip-api authorization",
+      "status": "contract_defined_and_tested_locally_ui_wiring_pending"
+    },
+    {
+      "sourceRepo": "dip-automation",
+      "targetRepo": "dip-analytics",
+      "direction": "scheduled_snapshots_and_retention",
+      "contractOwner": "dip-automation (scheduler) + dip-analytics (snapshot/retention ports)",
+      "contractVersion": "1.0.0",
+      "authRequirement": "Tenant-scoped service context (analytics:read, analytics:ingest, analytics:admin)",
+      "tenantBoundary": "Per-tenant snapshot and retention execution",
+      "status": "interfaces_and_in_memory_tested_scheduler_pending"
+    },
+    {
+      "sourceRepo": "dip-analytics",
+      "targetRepo": "dip-docs",
+      "direction": "documentation_and_schemas",
+      "contractOwner": "dip-analytics",
+      "contractVersion": "1.0.0",
+      "authRequirement": "none (non-sensitive technical documentation)",
+      "tenantBoundary": "Synthetic examples only",
+      "status": "complete_in_dip_analytics_central_index_pending"
+    }
+  ]
+}

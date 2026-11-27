@@ -1,0 +1,5 @@
+{
+  "name": "DIP Analytics",
+  "description": "Secure, tenant-aware analytics domain, versioned event contracts, deterministic aggregations, and reporting foundation for Digital India Project.",
+  "requestFramePermissions": []
+}
