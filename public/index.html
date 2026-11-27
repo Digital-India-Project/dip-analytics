@@ -16,38 +16,47 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&family=Public+Sans:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/assets/app.css" />
   </head>
-  <body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen">
+  <body class="bg-[var(--dip-bg-canvas)] text-[var(--dip-text-primary)] min-h-screen">
     <div id="app-shell" class="min-h-screen flex flex-col lg:flex-row">
       <!-- Mobile Drawer Backdrop -->
       <div
         id="mobile-sidebar-backdrop"
-        class="fixed inset-0 z-30 bg-slate-950/50 hidden lg:hidden"
+        class="fixed inset-0 z-30 bg-black/50 hidden lg:hidden"
         aria-hidden="true"
       ></div>
 
-      <!-- Left Workspace Sidebar (260px desktop) -->
+      <!-- dip-ui Sidebar (260px desktop, collapsible to 72px rail) -->
       <aside
         id="workspace-sidebar"
         aria-label="Primary analytics navigation"
-        class="fixed inset-y-0 left-0 z-40 w-64 shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between transform -translate-x-full lg:translate-x-0 lg:static transition-transform duration-150 ease-out"
+        class="fixed inset-y-0 left-0 z-40 w-[260px] shrink-0 bg-[var(--dip-bg-surface)] text-[var(--dip-text-primary)] border-r border-[var(--dip-border)] flex flex-col justify-between transform -translate-x-full lg:translate-x-0 lg:static transition-[transform,width] duration-150 ease-out"
       >
         <div>
-          <div class="h-16 px-6 flex items-center justify-between border-b border-slate-200 dark:border-slate-800">
+          <div class="min-h-[60px] px-4 flex items-center justify-between gap-3 border-b border-[var(--dip-border)]">
             <a
               href="/"
-              class="font-display text-lg font-bold tracking-tight text-slate-900 dark:text-slate-50 whitespace-nowrap shrink-0"
+              class="flex items-center gap-3 min-w-0 whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dip-focus-ring)] rounded-md"
             >
-              DIP Analytics
+              <!-- DipBrandMark SVG -->
+              <svg viewBox="0 0 28 28" fill="none" aria-hidden="true" class="h-7 w-7 shrink-0">
+                <rect width="28" height="28" rx="6" fill="var(--dip-brand-red)" />
+                <path d="M7 8.5h14" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" />
+                <path d="M7 14h10" stroke="#FDBA74" stroke-width="2.2" stroke-linecap="round" />
+                <path d="M7 19.5h14" stroke="#86EFAC" stroke-width="2.2" stroke-linecap="round" />
+              </svg>
+              <span class="sidebar-label dip-font-display text-base font-bold tracking-tight text-[var(--dip-text-primary)] whitespace-nowrap">
+                DIP Analytics
+              </span>
             </a>
             <button
               id="close-sidebar-btn"
               type="button"
-              class="lg:hidden p-2 rounded-md text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 focus-visible:outline-2 focus-visible:outline-blue-600"
+              class="lg:hidden p-2 rounded-[var(--dip-radius-md)] text-[var(--dip-text-muted)] hover:bg-[var(--dip-bg-subtle)] hover:text-[var(--dip-text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--dip-focus-ring)]"
               aria-label="Close navigation menu"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
@@ -56,105 +65,172 @@
             </button>
           </div>
 
-          <nav class="p-4 space-y-1" id="sidebar-nav">
-            <button
-              type="button"
-              data-view="executive"
-              class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-left transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-blue-600"
-            >
-              <span>Executive Overview</span>
-            </button>
-            <button
-              type="button"
-              data-view="operations"
-              class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-left transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-blue-600"
-            >
-              <span>Operations &amp; Backlog</span>
-            </button>
-            <button
-              type="button"
-              data-view="finance"
-              class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-left transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-blue-600"
-            >
-              <span>Finance &amp; Economics</span>
-            </button>
-            <button
-              type="button"
-              data-view="entities"
-              class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-left transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-blue-600"
-            >
-              <span>Partners &amp; Workforce</span>
-            </button>
-            <button
-              type="button"
-              data-view="api"
-              class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-left transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-blue-600"
-            >
-              <span>API &amp; Anomalies</span>
-            </button>
-            <button
-              type="button"
-              data-view="export"
-              class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-left transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-blue-600"
-            >
-              <span>Export Studio</span>
-            </button>
-            <button
-              type="button"
-              data-view="governance"
-              class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-left transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-blue-600"
-            >
-              <span>Privacy &amp; Contracts</span>
-            </button>
+          <nav class="px-3 py-4 space-y-5" id="sidebar-nav">
+            <div>
+              <p class="sidebar-label px-3 mb-2 text-xs font-semibold text-[var(--dip-text-muted)]">
+                Intelligence
+              </p>
+              <ul class="space-y-1">
+                <li>
+                  <button
+                    type="button"
+                    data-view="executive"
+                    title="Executive Overview"
+                    class="nav-item w-full flex items-center gap-3 rounded-[var(--dip-radius-md)] px-3 min-h-[40px] text-sm font-medium text-left transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-[var(--dip-focus-ring)]"
+                  >
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 16v-4m5 4V8m5 8v-6" />
+                    </svg>
+                    <span class="sidebar-label">Executive Overview</span>
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    data-view="operations"
+                    title="Operations & Backlog"
+                    class="nav-item w-full flex items-center gap-3 rounded-[var(--dip-radius-md)] px-3 min-h-[40px] text-sm font-medium text-left transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-[var(--dip-focus-ring)]"
+                  >
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    <span class="sidebar-label">Operations &amp; Backlog</span>
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    data-view="finance"
+                    title="Finance & Economics"
+                    class="nav-item w-full flex items-center gap-3 rounded-[var(--dip-radius-md)] px-3 min-h-[40px] text-sm font-medium text-left transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-[var(--dip-focus-ring)]"
+                  >
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V6m0 12v-2m9-4a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span class="sidebar-label">Finance &amp; Economics</span>
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    data-view="entities"
+                    title="Partners & Workforce"
+                    class="nav-item w-full flex items-center gap-3 rounded-[var(--dip-radius-md)] px-3 min-h-[40px] text-sm font-medium text-left transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-[var(--dip-focus-ring)]"
+                  >
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span class="sidebar-label">Partners &amp; Workforce</span>
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <p class="sidebar-label px-3 mb-2 text-xs font-semibold text-[var(--dip-text-muted)]">
+                Platform &amp; Controls
+              </p>
+              <ul class="space-y-1">
+                <li>
+                  <button
+                    type="button"
+                    data-view="api"
+                    title="API & Anomalies"
+                    class="nav-item w-full flex items-center gap-3 rounded-[var(--dip-radius-md)] px-3 min-h-[40px] text-sm font-medium text-left transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-[var(--dip-focus-ring)]"
+                  >
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    <span class="sidebar-label">API &amp; Anomalies</span>
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    data-view="export"
+                    title="Export Studio"
+                    class="nav-item w-full flex items-center gap-3 rounded-[var(--dip-radius-md)] px-3 min-h-[40px] text-sm font-medium text-left transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-[var(--dip-focus-ring)]"
+                  >
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    <span class="sidebar-label">Export Studio</span>
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    data-view="governance"
+                    title="Privacy & Contracts"
+                    class="nav-item w-full flex items-center gap-3 rounded-[var(--dip-radius-md)] px-3 min-h-[40px] text-sm font-medium text-left transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-[var(--dip-focus-ring)]"
+                  >
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 3l7 4v5c0 5-3.5 8-7 9-3.5-1-7-4-7-9V7l7-4z" />
+                    </svg>
+                    <span class="sidebar-label">Privacy &amp; Contracts</span>
+                  </button>
+                </li>
+              </ul>
+            </div>
           </nav>
         </div>
 
-        <div class="p-5 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 space-y-1.5">
-          <div class="font-medium text-slate-700 dark:text-slate-200">Synthetic Sandbox Data</div>
+        <div class="sidebar-label p-4 border-t border-[var(--dip-border)] text-xs text-[var(--dip-text-muted)] space-y-1">
+          <div class="font-medium text-[var(--dip-text-secondary)]">Synthetic Sandbox Data</div>
           <div>Zero PII · Integer Minor Units</div>
-          <div>Schema Contract v1.0.0</div>
         </div>
       </aside>
 
       <!-- Main Workspace Column -->
       <div class="flex-1 min-w-0 flex flex-col">
-        <!-- Top Header (Breadcrumb Left, Single Primary Action + Theme Toggle Right) -->
-        <header class="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+        <!-- dip-ui Topbar -->
+        <header class="sticky top-0 z-20 min-h-[60px] bg-[var(--dip-bg-surface)] border-b border-[var(--dip-border)] px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
           <div class="flex items-center gap-3 min-w-0">
             <button
               id="open-sidebar-btn"
               type="button"
-              class="lg:hidden p-2 -ml-2 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-blue-600"
+              class="lg:hidden inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--dip-radius-md)] border border-[var(--dip-border)] text-[var(--dip-text-secondary)] hover:bg-[var(--dip-bg-subtle)] hover:text-[var(--dip-text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--dip-focus-ring)]"
               aria-label="Open navigation menu"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
               </svg>
             </button>
-            <div class="flex items-center gap-2 text-sm min-w-0 truncate">
-              <span class="text-slate-500 dark:text-slate-400 whitespace-nowrap">Analytics</span>
-              <span class="text-slate-400 dark:text-slate-600" aria-hidden="true">/</span>
-              <h1
+            <button
+              id="collapse-sidebar-btn"
+              type="button"
+              class="hidden lg:inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--dip-radius-md)] text-[var(--dip-text-secondary)] hover:bg-[var(--dip-bg-subtle)] hover:text-[var(--dip-text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--dip-focus-ring)]"
+              aria-label="Collapse sidebar"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 3v18M4 5h16a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1z" />
+              </svg>
+            </button>
+
+            <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-sm min-w-0 truncate">
+              <span class="text-[var(--dip-text-muted)] whitespace-nowrap">Analytics</span>
+              <span class="text-[var(--dip-text-muted)]" aria-hidden="true">/</span>
+              <span
                 id="header-breadcrumb-title"
-                class="font-display font-semibold text-slate-900 dark:text-slate-50 truncate"
+                class="dip-font-display font-semibold text-[var(--dip-text-primary)] truncate"
               >
                 Executive Overview
-              </h1>
-            </div>
+              </span>
+            </nav>
           </div>
 
-          <div class="flex items-center gap-3 shrink-0">
+          <div class="flex items-center gap-2.5 shrink-0">
             <button
               id="theme-toggle-btn"
               type="button"
-              class="px-3 py-2 rounded-lg text-xs font-medium border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-blue-600"
+              class="px-3 py-2 rounded-[var(--dip-radius-md)] text-xs font-medium border border-[var(--dip-border)] bg-[var(--dip-bg-surface)] text-[var(--dip-text-secondary)] hover:bg-[var(--dip-bg-subtle)] hover:text-[var(--dip-text-primary)] transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-[var(--dip-focus-ring)]"
             >
               Dark Mode
             </button>
             <button
               id="quick-export-csv-btn"
               type="button"
-              class="px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+              class="px-4 py-2 rounded-[var(--dip-radius-md)] text-xs font-semibold bg-[var(--dip-accent)] hover:bg-[var(--dip-accent-hover)] text-[var(--dip-accent-fg)] transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--dip-focus-ring)]"
             >
               Download CSV
             </button>
@@ -164,47 +240,47 @@
         <!-- Workspace Filter & Scope Toolbar -->
         <section
           aria-label="Query scope and filters"
-          class="bg-white dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 lg:px-8 py-3.5"
+          class="bg-[var(--dip-bg-surface)] border-b border-[var(--dip-border)] px-4 sm:px-6 lg:px-8 py-3"
         >
           <div class="max-w-[1440px] mx-auto flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
             <div class="flex flex-wrap items-center gap-3">
-              <label class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+              <label class="flex items-center gap-2 text-xs text-[var(--dip-text-secondary)]">
                 <span class="font-medium whitespace-nowrap">Tenant</span>
                 <select
                   id="filter-tenant"
-                  class="px-2.5 py-1.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-medium focus-visible:outline-2 focus-visible:outline-blue-600"
+                  class="px-2.5 py-1.5 rounded-[var(--dip-radius-md)] border border-[var(--dip-border)] bg-[var(--dip-bg-subtle)] text-[var(--dip-text-primary)] text-xs font-medium focus-visible:outline-2 focus-visible:outline-[var(--dip-focus-ring)]"
                 >
                   <option value="tenant_alpha">tenant_alpha — National Citizen Portal</option>
                   <option value="tenant_beta">tenant_beta — State Enterprise Registry</option>
                 </select>
               </label>
 
-              <label class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+              <label class="flex items-center gap-2 text-xs text-[var(--dip-text-secondary)]">
                 <span class="font-medium whitespace-nowrap">Timezone</span>
                 <select
                   id="filter-timezone"
-                  class="px-2.5 py-1.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-medium focus-visible:outline-2 focus-visible:outline-blue-600"
+                  class="px-2.5 py-1.5 rounded-[var(--dip-radius-md)] border border-[var(--dip-border)] bg-[var(--dip-bg-subtle)] text-[var(--dip-text-primary)] text-xs font-medium focus-visible:outline-2 focus-visible:outline-[var(--dip-focus-ring)]"
                 >
                   <option value="Asia/Kolkata">Asia/Kolkata (+05:30)</option>
                   <option value="UTC">UTC</option>
                 </select>
               </label>
 
-              <label class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+              <label class="flex items-center gap-2 text-xs text-[var(--dip-text-secondary)]">
                 <span class="font-medium whitespace-nowrap">Service</span>
                 <select
                   id="filter-service"
-                  class="px-2.5 py-1.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-medium focus-visible:outline-2 focus-visible:outline-blue-600"
+                  class="px-2.5 py-1.5 rounded-[var(--dip-radius-md)] border border-[var(--dip-border)] bg-[var(--dip-bg-subtle)] text-[var(--dip-text-primary)] text-xs font-medium focus-visible:outline-2 focus-visible:outline-[var(--dip-focus-ring)]"
                 >
                   <option value="">All Services</option>
                 </select>
               </label>
 
-              <label class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+              <label class="flex items-center gap-2 text-xs text-[var(--dip-text-secondary)]">
                 <span class="font-medium whitespace-nowrap">Currency</span>
                 <select
                   id="filter-currency"
-                  class="px-2.5 py-1.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-medium focus-visible:outline-2 focus-visible:outline-blue-600"
+                  class="px-2.5 py-1.5 rounded-[var(--dip-radius-md)] border border-[var(--dip-border)] bg-[var(--dip-bg-subtle)] text-[var(--dip-text-primary)] text-xs font-medium focus-visible:outline-2 focus-visible:outline-[var(--dip-focus-ring)]"
                 >
                   <option value="">All Currencies</option>
                   <option value="INR">INR</option>
@@ -213,21 +289,21 @@
               </label>
 
               <div
-                class="inline-flex items-center p-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                class="inline-flex items-center p-0.5 rounded-[var(--dip-radius-md)] bg-[var(--dip-bg-subtle)] border border-[var(--dip-border)]"
                 role="group"
                 aria-label="Time granularity"
               >
                 <button
                   type="button"
                   data-granularity="day"
-                  class="gran-btn px-3 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap shrink-0"
+                  class="gran-btn px-3 py-1 rounded-[var(--dip-radius-sm)] text-xs font-medium transition-colors whitespace-nowrap shrink-0"
                 >
                   Daily
                 </button>
                 <button
                   type="button"
                   data-granularity="week"
-                  class="gran-btn px-3 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap shrink-0"
+                  class="gran-btn px-3 py-1 rounded-[var(--dip-radius-sm)] text-xs font-medium transition-colors whitespace-nowrap shrink-0"
                 >
                   Weekly
                 </button>
@@ -237,7 +313,7 @@
             <!-- Quiet Unboxed Metadata (Zero Pills) -->
             <div
               id="scope-metadata-line"
-              class="text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums truncate"
+              class="text-xs text-[var(--dip-text-muted)] font-mono dip-tabular truncate"
             >
               Loading window metadata...
             </div>

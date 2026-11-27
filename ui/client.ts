@@ -33,8 +33,8 @@ interface TimeSeriesBucket {
 
 interface CurrencyFinancialRow {
   readonly currency: string;
-  readonly successfulPaymentCount: number;
-  readonly refundCount: number;
+  readonly succeededPaymentsCount: number;
+  readonly refundsCount: number;
   readonly grossRevenueMinor: number;
   readonly totalFeesMinor: number;
   readonly netRevenueBeforeRefundsMinor: number;
@@ -42,7 +42,25 @@ interface CurrencyFinancialRow {
   readonly netRevenueAfterRefundsMinor: number;
   readonly refundRateBps: number | null;
   readonly formattedGrossRevenue: string;
-  readonly formattedNetAfterRefunds: string;
+  readonly formattedTotalRefunded: string;
+  readonly formattedNetRevenueAfterRefunds: string;
+}
+
+interface SlaSummary {
+  readonly completedApplicationsCount: number;
+  readonly evaluatedAgainstTargetCount: number;
+  readonly withinSlaTargetCount: number;
+  readonly slaComplianceRateBps: number | null;
+  readonly warningBreaches: number;
+  readonly criticalBreaches: number;
+  readonly processingDuration: DurationSummary;
+  readonly stageBottlenecks: readonly {
+    readonly stageCode: string;
+    readonly breachCount: number;
+    readonly warningCount: number;
+    readonly criticalCount: number;
+    readonly maxOverrunMs: number;
+  }[];
 }
 
 interface WorkbenchOverviewResponse {
@@ -76,22 +94,9 @@ interface WorkbenchOverviewResponse {
         readonly completionRateBps: number | null;
         readonly approvalRateOfCompletedBps: number | null;
       };
-      readonly sla: {
-        readonly totalCompletedEvaluated: number;
-        readonly withinSlaTargetCount: number;
-        readonly slaComplianceRateBps: number | null;
-        readonly warningBreachCount: number;
-        readonly criticalBreachCount: number;
-        readonly overallDuration: DurationSummary;
-        readonly stageBottlenecks: readonly {
-          readonly serviceCode: string;
-          readonly stageCode: string;
-          readonly breachCount: number;
-          readonly maxOverrunMs: number;
-        }[];
-      };
+      readonly sla: SlaSummary;
       readonly revenue: {
-        readonly currencies: readonly CurrencyFinancialRow[];
+        readonly byCurrency: readonly CurrencyFinancialRow[];
         readonly multiCurrencyDetected: boolean;
       };
       readonly apiHealth: {
@@ -123,10 +128,18 @@ interface WorkbenchOverviewResponse {
     readonly operations: {
       readonly statusDistribution: {
         readonly trackedApplicationsCount: number;
-        readonly countsByStatus: Record<string, number>;
+        readonly currentStatuses: readonly {
+          readonly status: string;
+          readonly applicationCount: number;
+          readonly shareBps: number;
+        }[];
       };
     };
     readonly finance: {
+      readonly revenueAndRefunds: {
+        readonly byCurrency: readonly CurrencyFinancialRow[];
+        readonly multiCurrencyDetected: boolean;
+      };
       readonly paymentMetrics: {
         readonly initiatedCount: number;
         readonly succeededCount: number;
@@ -134,7 +147,7 @@ interface WorkbenchOverviewResponse {
         readonly refundedCount: number;
         readonly successRateBps: number | null;
         readonly byMethod: readonly {
-          readonly method: string;
+          readonly paymentMethodCategory: string;
           readonly initiatedCount: number;
           readonly succeededCount: number;
           readonly failedCount: number;
@@ -142,18 +155,18 @@ interface WorkbenchOverviewResponse {
         }[];
       };
       readonly reconciliation: {
-        readonly totalTrackedPayments: number;
+        readonly trackedPaymentRefsCount: number;
         readonly settledCount: number;
         readonly failedOnlyCount: number;
         readonly unsettledInitiatedCount: number;
         readonly orphanedRefundCount: number;
         readonly overRefundedCount: number;
         readonly currencyDiscrepancyCount: number;
-        readonly totalsByCurrency: readonly {
+        readonly byCurrency: readonly {
           readonly currency: string;
           readonly settledGrossMinor: number;
           readonly refundedMinor: number;
-          readonly netReconciledMinor: number;
+          readonly reconciledNetMinor: number;
         }[];
       };
     };
@@ -162,8 +175,8 @@ interface WorkbenchOverviewResponse {
         readonly partners: readonly {
           readonly partnerRef: string;
           readonly assignedCount: number;
-          readonly completedCount: number;
-          readonly returnedCount: number;
+          readonly workCompletedCount: number;
+          readonly workReturnedCount: number;
           readonly completionRateBps: number | null;
           readonly turnaround: DurationSummary;
           readonly commissionsByCurrencyMinor: Record<string, number>;
@@ -175,16 +188,16 @@ interface WorkbenchOverviewResponse {
         readonly operators: readonly {
           readonly operatorRef: string;
           readonly totalActions: number;
-          readonly queuesTouchedCount: number;
-          readonly approvalRateBps: number | null;
+          readonly distinctQueuesCount: number;
+          readonly approvalDecisionRateBps: number | null;
           readonly escalationRateBps: number | null;
-          readonly handlingDuration: DurationSummary;
+          readonly actionDuration: DurationSummary;
         }[];
         readonly byQueue: readonly {
           readonly queueCode: string;
           readonly totalActions: number;
           readonly distinctOperatorsCount: number;
-          readonly handlingDuration: DurationSummary;
+          readonly actionDuration: DurationSummary;
         }[];
       };
     };
@@ -205,15 +218,15 @@ interface WorkbenchOverviewResponse {
     readonly apiAnalytics: {
       readonly apiMetrics: {
         readonly totalRequests: number;
-        readonly success2xxCount: number;
-        readonly clientError4xxCount: number;
-        readonly serverError5xxCount: number;
+        readonly status2xxCount: number;
+        readonly status4xxCount: number;
+        readonly status5xxCount: number;
         readonly errorRateBps: number | null;
         readonly serverErrorRateBps: number | null;
         readonly overallLatency: DurationSummary;
         readonly endpoints: readonly {
-          readonly endpointKey: string;
-          readonly totalRequests: number;
+          readonly routeKey: string;
+          readonly requestCount: number;
           readonly errorRateBps: number | null;
           readonly latency: DurationSummary;
         }[];
@@ -288,6 +301,26 @@ interface ExportPreviewResponse {
   readonly content: string;
 }
 
+interface ExportDispatchEntry {
+  readonly id: string;
+  readonly dataset: string;
+  readonly format: string;
+  readonly rowCount: number;
+  readonly suppressedRowCount: number;
+  readonly timestamp: string;
+}
+
+const DIP_CHART_VARS = [
+  "var(--dip-chart-1)",
+  "var(--dip-chart-2)",
+  "var(--dip-chart-3)",
+  "var(--dip-chart-4)",
+  "var(--dip-chart-5)",
+  "var(--dip-chart-6)",
+  "var(--dip-chart-7)",
+  "var(--dip-chart-8)",
+] as const;
+
 const VIEW_TITLES: Record<ViewKey, string> = {
   executive: "Executive Overview",
   operations: "Operations & Backlog",
@@ -298,8 +331,53 @@ const VIEW_TITLES: Record<ViewKey, string> = {
   governance: "Privacy, Tenant & Schemas",
 };
 
+interface SavedReportPreset {
+  readonly id: string;
+  readonly label: string;
+  readonly dataset: "regions" | "services" | "unit_economics";
+  readonly format: "csv" | "ndjson" | "json";
+  readonly minCount: number;
+  readonly mode: "suppress" | "rollup_other";
+}
+
+const SAVED_REPORT_PRESETS: readonly SavedReportPreset[] = [
+  {
+    id: "preset_region_kanon",
+    label: "Regional K-Anonymity (min 5)",
+    dataset: "regions",
+    format: "csv",
+    minCount: 5,
+    mode: "suppress",
+  },
+  {
+    id: "preset_region_rollup",
+    label: "Regional Rollup (__suppressed__)",
+    dataset: "regions",
+    format: "ndjson",
+    minCount: 5,
+    mode: "rollup_other",
+  },
+  {
+    id: "preset_unit_econ_csv",
+    label: "Service Unit Economics CSV",
+    dataset: "unit_economics",
+    format: "csv",
+    minCount: 0,
+    mode: "suppress",
+  },
+  {
+    id: "preset_services_json",
+    label: "Service Performance Envelope",
+    dataset: "services",
+    format: "json",
+    minCount: 0,
+    mode: "suppress",
+  },
+];
+
 interface AppState {
   activeView: ViewKey;
+  sidebarCollapsed: boolean;
   tenantId: string;
   timeZone: string;
   granularity: "day" | "week";
@@ -307,11 +385,15 @@ interface AppState {
   currency: string;
   entitiesTab: "partners" | "operators" | "services";
   entitiesSearch: string;
+  hiddenTrendSeries: Set<string>;
+  hiddenDonutIds: Set<string>;
+  financeMethodFilter: string;
   exportDataset: "regions" | "services" | "unit_economics";
   exportFormat: "csv" | "ndjson" | "json";
   exportMinCount: number;
   exportMode: "suppress" | "rollup_other";
   exportPreview: ExportPreviewResponse | null;
+  exportLog: ExportDispatchEntry[];
   overview: WorkbenchOverviewResponse | null;
   loading: boolean;
   errorMessage: string | null;
@@ -380,6 +462,7 @@ const PRESET_EVENTS: Record<string, Record<string, unknown>> = {
 
 const state: AppState = {
   activeView: "executive",
+  sidebarCollapsed: false,
   tenantId: "tenant_alpha",
   timeZone: "Asia/Kolkata",
   granularity: "day",
@@ -387,11 +470,15 @@ const state: AppState = {
   currency: "",
   entitiesTab: "partners",
   entitiesSearch: "",
+  hiddenTrendSeries: new Set<string>(),
+  hiddenDonutIds: new Set<string>(),
+  financeMethodFilter: "all",
   exportDataset: "regions",
   exportFormat: "csv",
   exportMinCount: 5,
   exportMode: "suppress",
   exportPreview: null,
+  exportLog: [],
   overview: null,
   loading: true,
   errorMessage: null,
@@ -434,6 +521,176 @@ function fmtMinor(amountMinor: number, currency: string): string {
   const whole = Math.floor(abs / 100);
   const frac = String(abs % 100).padStart(2, "0");
   return `${negative ? "-" : ""}${currency} ${whole.toLocaleString("en-IN")}.${frac}`;
+}
+
+function chartColor(idx: number): string {
+  return DIP_CHART_VARS[idx % DIP_CHART_VARS.length]!;
+}
+
+/** dip-ui StatStrip component (single-container horizontal divide-x layout) */
+function renderStatStrip(
+  items: readonly { readonly label: string; readonly value: string; readonly context?: string }[],
+): string {
+  return `
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-[var(--dip-border)] rounded-[var(--dip-radius-lg)] border border-[var(--dip-border)] bg-[var(--dip-bg-surface)]">
+      ${items
+        .map(
+          (item) => `
+        <div class="p-5 flex flex-col gap-1">
+          <span class="text-xs font-medium text-[var(--dip-text-secondary)]">${escHtml(item.label)}</span>
+          <span class="text-2xl font-bold tracking-tight text-[var(--dip-text-primary)] dip-tabular font-mono">${escHtml(item.value)}</span>
+          ${item.context ? `<span class="text-xs text-[var(--dip-text-muted)] font-mono dip-tabular">${escHtml(item.context)}</span>` : ""}
+        </div>
+      `,
+        )
+        .join("")}
+    </div>
+  `;
+}
+
+/** dip-ui PageHeader component */
+function renderPageHeader(title: string, description: string, actionsHtml: string = ""): string {
+  return `
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 pb-4 border-b border-[var(--dip-border)]">
+      <div class="space-y-1">
+        <h1 class="dip-font-display text-xl sm:text-2xl font-bold tracking-tight text-[var(--dip-text-primary)]">${escHtml(title)}</h1>
+        <p class="text-sm text-[var(--dip-text-secondary)]">${escHtml(description)}</p>
+      </div>
+      ${actionsHtml ? `<div class="flex items-center gap-2 shrink-0">${actionsHtml}</div>` : ""}
+    </div>
+  `;
+}
+
+/** dip-ui StatusLabel (unboxed icon + text label) */
+function renderStatusLabel(
+  tone: "green" | "yellow" | "red" | "orange" | "neutral",
+  label: string,
+): string {
+  const toneClass: Record<typeof tone, string> = {
+    green: "text-[var(--dip-success)]",
+    yellow: "text-[var(--dip-warning)]",
+    red: "text-[var(--dip-danger)]",
+    orange: "text-[var(--dip-info)]",
+    neutral: "text-[var(--dip-text-muted)]",
+  };
+  const iconSvg =
+    tone === "green"
+      ? `<path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />`
+      : tone === "red"
+        ? `<path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />`
+        : tone === "yellow" || tone === "orange"
+          ? `<path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />`
+          : `<path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />`;
+
+  return `
+    <span class="inline-flex items-center gap-1.5 text-xs font-medium whitespace-nowrap shrink-0 ${toneClass[tone]}">
+      <svg class="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">${iconSvg}</svg>
+      <span>${escHtml(label)}</span>
+    </span>
+  `;
+}
+
+/** dip-ui DonutChart SVG builder (CircularAndDistributionCharts.tsx) */
+function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
+  const rad = ((angleDeg - 90) * Math.PI) / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+function describeArcSlice(
+  cx: number,
+  cy: number,
+  outerR: number,
+  innerR: number,
+  startAngle: number,
+  endAngle: number,
+): string {
+  const sweep = endAngle - startAngle;
+  const largeArc = sweep > 180 ? 1 : 0;
+  const p1 = polarToCartesian(cx, cy, outerR, startAngle);
+  const p2 = polarToCartesian(cx, cy, outerR, endAngle);
+  const p3 = polarToCartesian(cx, cy, innerR, endAngle);
+  const p4 = polarToCartesian(cx, cy, innerR, startAngle);
+  return `M ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} A ${outerR} ${outerR} 0 ${largeArc} 1 ${p2.x.toFixed(2)} ${p2.y.toFixed(2)} L ${p3.x.toFixed(2)} ${p3.y.toFixed(2)} A ${innerR} ${innerR} 0 ${largeArc} 0 ${p4.x.toFixed(2)} ${p4.y.toFixed(2)} Z`;
+}
+
+function renderDonutChartCard(params: {
+  readonly title: string;
+  readonly subtitle: string;
+  readonly centerLabel: string;
+  readonly slices: readonly { readonly id: string; readonly label: string; readonly value: number }[];
+}): string {
+  const visible = params.slices.filter((s) => !state.hiddenDonutIds.has(s.id) && s.value > 0);
+  const total = visible.reduce((acc, s) => acc + s.value, 0);
+
+  let angle = 0;
+  const paths =
+    total > 0
+      ? visible
+          .map((slice) => {
+            const origIdx = params.slices.findIndex((d) => d.id === slice.id);
+            const color = chartColor(origIdx);
+            const sweep = (slice.value / total) * 359.999;
+            const start = angle;
+            const end = start + sweep;
+            angle = end;
+            return `<path d="${describeArcSlice(100, 100, 84, 52, start, end)}" fill="${color}" stroke="var(--dip-bg-surface)" stroke-width="2"><title>${escHtml(slice.label)}: ${slice.value.toLocaleString("en-IN")}</title></path>`;
+          })
+          .join("")
+      : "";
+
+  const legendButtons = params.slices
+    .map((s, idx) => {
+      const hidden = state.hiddenDonutIds.has(s.id);
+      return `
+        <button type="button" data-donut-toggle="${escHtml(s.id)}" class="donut-legend-btn inline-flex items-center gap-1.5 text-xs transition-opacity cursor-pointer ${hidden ? "opacity-40 line-through" : "text-[var(--dip-text-secondary)] hover:text-[var(--dip-text-primary)]"}">
+          <span class="h-2.5 w-2.5 rounded-xs shrink-0" style="background-color:${chartColor(idx)}" aria-hidden="true"></span>
+          <span>${escHtml(s.label)}</span>
+        </button>
+      `;
+    })
+    .join("");
+
+  const breakdownRows = visible
+    .map((slice) => {
+      const origIdx = params.slices.findIndex((d) => d.id === slice.id);
+      const pct = total > 0 ? ((slice.value / total) * 100).toFixed(1) : "0.0";
+      return `
+        <div class="flex items-center justify-between gap-3 text-xs py-1.5 border-b border-[var(--dip-border)] last:border-b-0">
+          <span class="inline-flex items-center gap-2 text-[var(--dip-text-secondary)]">
+            <span class="h-2.5 w-2.5 rounded-xs shrink-0" style="background-color:${chartColor(origIdx)}" aria-hidden="true"></span>
+            <span class="font-mono">${escHtml(slice.label)}</span>
+          </span>
+          <span class="font-mono dip-tabular text-[var(--dip-text-primary)] font-medium">
+            ${slice.value.toLocaleString("en-IN")} (${pct}%)
+          </span>
+        </div>
+      `;
+    })
+    .join("");
+
+  return `
+    <section class="rounded-[var(--dip-radius-lg)] border border-[var(--dip-border)] bg-[var(--dip-bg-surface)] p-6 space-y-4">
+      <div class="space-y-1">
+        <h2 class="dip-font-display text-base font-semibold text-[var(--dip-text-primary)]">${escHtml(params.title)}</h2>
+        <p class="text-xs text-[var(--dip-text-muted)]">${escHtml(params.subtitle)}</p>
+      </div>
+      <div class="flex flex-wrap gap-3">${legendButtons}</div>
+      ${
+        total > 0
+          ? `
+        <div class="flex flex-col sm:flex-row items-center gap-6 pt-1">
+          <svg viewBox="0 0 200 200" class="w-44 h-44 shrink-0 select-none" role="img" aria-label="${escHtml(params.title)}">
+            ${paths}
+            <text x="100" y="96" text-anchor="middle" fill="var(--dip-text-primary)" font-size="18" font-weight="700" class="font-mono dip-tabular">${total.toLocaleString("en-IN")}</text>
+            <text x="100" y="114" text-anchor="middle" fill="var(--dip-text-muted)" font-size="11">${escHtml(params.centerLabel)}</text>
+          </svg>
+          <div class="w-full min-w-0">${breakdownRows}</div>
+        </div>
+      `
+          : `<p class="text-xs text-[var(--dip-text-muted)] py-6 text-center">All segments hidden or zero values in window.</p>`
+      }
+    </section>
+  `;
 }
 
 function downloadTextFile(filename: string, content: string, mimeType: string): void {
@@ -499,6 +756,17 @@ async function fetchExportPreview(downloadAfter: boolean = false): Promise<void>
           ? "application/x-ndjson;charset=utf-8"
           : "application/json;charset=utf-8";
     downloadTextFile(`dip-analytics-${state.tenantId}-${data.dataset}.${ext}`, data.content, mime);
+    state.exportLog = [
+      {
+        id: `exp_${Date.now()}`,
+        dataset: data.dataset,
+        format: data.format.toUpperCase(),
+        rowCount: data.rowCount,
+        suppressedRowCount: data.suppressedRowCount,
+        timestamp: new Date().toISOString().slice(11, 19) + " UTC",
+      },
+      ...state.exportLog.slice(0, 5),
+    ];
   }
   renderViewport();
 }
@@ -529,49 +797,52 @@ function updateHeaderAndMeta(): void {
     metaEl.textContent = `${m.tenantId} · ${m.timeZone} · ${m.window.from.slice(0, 10)} to ${m.window.to.slice(0, 10)} · ${m.dataCompleteness.totalWindowEvents} events`;
   }
 
+  const sidebar = document.getElementById("workspace-sidebar");
+  if (sidebar) {
+    if (state.sidebarCollapsed) {
+      sidebar.classList.remove("w-[260px]");
+      sidebar.classList.add("lg:w-[72px]");
+    } else {
+      sidebar.classList.add("w-[260px]");
+      sidebar.classList.remove("lg:w-[72px]");
+    }
+    sidebar.querySelectorAll<HTMLElement>(".sidebar-label").forEach((el) => {
+      el.classList.toggle("lg:hidden", state.sidebarCollapsed);
+    });
+  }
+
   document.querySelectorAll<HTMLButtonElement>(".nav-item").forEach((btn) => {
     const active = btn.dataset["view"] === state.activeView;
-    btn.className = `nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-left transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-blue-600 ${
+    btn.className = `nav-item w-full flex items-center gap-3 rounded-[var(--dip-radius-md)] px-3 min-h-[40px] text-sm font-medium text-left transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-[var(--dip-focus-ring)] ${
       active
-        ? "bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300"
-        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+        ? "bg-[var(--dip-accent-soft)] text-[var(--dip-accent-text)] font-semibold"
+        : "text-[var(--dip-text-secondary)] hover:bg-[var(--dip-bg-subtle)] hover:text-[var(--dip-text-primary)]"
     }`;
   });
 
   document.querySelectorAll<HTMLButtonElement>(".gran-btn").forEach((btn) => {
     const active = btn.dataset["granularity"] === state.granularity;
-    btn.className = `gran-btn px-3 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
+    btn.className = `gran-btn px-3 py-1 rounded-[var(--dip-radius-sm)] text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
       active
-        ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-xs"
-        : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100"
+        ? "bg-[var(--dip-bg-surface)] text-[var(--dip-text-primary)] shadow-xs"
+        : "text-[var(--dip-text-muted)] hover:text-[var(--dip-text-primary)]"
     }`;
   });
 }
 
 function renderLoadingSkeleton(): string {
   return `
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 animate-pulse">
-      ${[1, 2, 3, 4]
-        .map(
-          () => `
-        <div class="h-28 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5">
-          <div class="h-3 w-24 bg-slate-200 dark:bg-slate-800 rounded mb-4"></div>
-          <div class="h-7 w-32 bg-slate-200 dark:bg-slate-800 rounded"></div>
-        </div>
-      `,
-        )
-        .join("")}
-    </div>
-    <div class="h-72 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 animate-pulse"></div>
+    <div class="h-28 rounded-[var(--dip-radius-lg)] bg-[var(--dip-bg-surface)] border border-[var(--dip-border)] animate-pulse"></div>
+    <div class="h-72 rounded-[var(--dip-radius-lg)] bg-[var(--dip-bg-surface)] border border-[var(--dip-border)] animate-pulse"></div>
   `;
 }
 
 function renderEmptyState(reason: string): string {
   return `
-    <div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-10 text-center space-y-4">
-      <h2 class="font-display text-lg font-semibold text-slate-900 dark:text-slate-100">No Matching Events in Window</h2>
-      <p class="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">${escHtml(reason)}</p>
-      <button type="button" id="reset-filters-btn" class="px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors">
+    <div class="rounded-[var(--dip-radius-lg)] bg-[var(--dip-bg-surface)] border border-[var(--dip-border)] p-10 text-center space-y-4">
+      <h2 class="dip-font-display text-lg font-semibold text-[var(--dip-text-primary)]">No Matching Events in Window</h2>
+      <p class="text-sm text-[var(--dip-text-secondary)] max-w-md mx-auto">${escHtml(reason)}</p>
+      <button type="button" id="reset-filters-btn" class="px-4 py-2 rounded-[var(--dip-radius-md)] text-xs font-semibold bg-[var(--dip-accent)] hover:bg-[var(--dip-accent-hover)] text-[var(--dip-accent-fg)] transition-colors">
         Reset Active Filters
       </button>
     </div>
@@ -580,8 +851,12 @@ function renderEmptyState(reason: string): string {
 
 function renderTrendSvgChart(buckets: readonly TimeSeriesBucket[]): string {
   if (buckets.length === 0) {
-    return `<p class="text-sm text-slate-500 dark:text-slate-400 py-8 text-center">No time-series buckets available.</p>`;
+    return `<p class="text-sm text-[var(--dip-text-muted)] py-8 text-center">No time-series buckets available.</p>`;
   }
+
+  const showSubmitted = !state.hiddenTrendSeries.has("submitted");
+  const showCompleted = !state.hiddenTrendSeries.has("completed");
+  const showBreaches = !state.hiddenTrendSeries.has("breaches");
 
   const width = 920;
   const height = 240;
@@ -592,9 +867,15 @@ function renderTrendSvgChart(buckets: readonly TimeSeriesBucket[]): string {
   const chartW = width - padLeft - padRight;
   const chartH = height - padTop - padBottom;
 
-  const maxSubmitted = Math.max(
+  const maxVal = Math.max(
     1,
-    ...buckets.map((b) => Math.max(b.applicationsSubmitted, b.applicationsCompleted, b.slaBreaches)),
+    ...buckets.map((b) =>
+      Math.max(
+        showSubmitted ? b.applicationsSubmitted : 0,
+        showCompleted ? b.applicationsCompleted : 0,
+        showBreaches ? b.slaBreaches : 0,
+      ),
+    ),
   );
   const stepX = chartW / buckets.length;
   const barW = Math.max(6, Math.min(28, stepX * 0.56));
@@ -602,10 +883,10 @@ function renderTrendSvgChart(buckets: readonly TimeSeriesBucket[]): string {
   const gridLines = [0, 0.25, 0.5, 0.75, 1]
     .map((ratio) => {
       const y = padTop + chartH * (1 - ratio);
-      const val = Math.round(maxSubmitted * ratio);
+      const val = Math.round(maxVal * ratio);
       return `
-        <line x1="${padLeft}" y1="${y.toFixed(1)}" x2="${width - padRight}" y2="${y.toFixed(1)}" stroke="currentColor" stroke-opacity="0.09" stroke-dasharray="3 3" />
-        <text x="${padLeft - 8}" y="${(y + 4).toFixed(1)}" text-anchor="end" fill="currentColor" fill-opacity="0.55" font-size="10" font-family="JetBrains Mono, monospace">${val}</text>
+        <line x1="${padLeft}" y1="${y.toFixed(1)}" x2="${width - padRight}" y2="${y.toFixed(1)}" stroke="var(--dip-chart-grid)" stroke-dasharray="3 3" />
+        <text x="${padLeft - 8}" y="${(y + 4).toFixed(1)}" text-anchor="end" fill="var(--dip-chart-axis)" font-size="10" font-family="JetBrains Mono, monospace">${val}</text>
       `;
     })
     .join("");
@@ -613,29 +894,33 @@ function renderTrendSvgChart(buckets: readonly TimeSeriesBucket[]): string {
   const bars = buckets
     .map((b, idx) => {
       const cx = padLeft + idx * stepX + stepX / 2;
-      const subH = (b.applicationsSubmitted / maxSubmitted) * chartH;
-      const cmpH = (b.applicationsCompleted / maxSubmitted) * chartH;
+      const subH = showSubmitted ? (b.applicationsSubmitted / maxVal) * chartH : 0;
+      const cmpH = showCompleted ? (b.applicationsCompleted / maxVal) * chartH : 0;
       const subY = padTop + chartH - subH;
       const cmpY = padTop + chartH - cmpH;
       const showLabel = buckets.length <= 16 || idx % 2 === 0;
       const shortLabel = b.bucketKey.length >= 10 ? b.bucketKey.slice(5, 10) : b.bucketKey;
       const breachMarker =
-        b.slaBreaches > 1
-          ? `<circle cx="${cx.toFixed(1)}" cy="${Math.max(padTop + 6, subY - 8).toFixed(1)}" r="3.5" fill="#D97706"><title>${escHtml(b.bucketKey)}: ${b.slaBreaches} SLA breaches</title></circle>`
+        showBreaches && b.slaBreaches > 1
+          ? `<circle cx="${cx.toFixed(1)}" cy="${Math.max(padTop + 6, Math.min(subY, cmpY) - 8).toFixed(1)}" r="4" fill="var(--dip-chart-4)"><title>${escHtml(b.bucketKey)}: ${b.slaBreaches} SLA breaches</title></circle>`
           : "";
 
       return `
         <g>
-          <rect x="${(cx - barW / 2).toFixed(1)}" y="${subY.toFixed(1)}" width="${(barW * 0.52).toFixed(1)}" height="${subH.toFixed(1)}" rx="2" fill="#2563EB">
-            <title>${escHtml(b.bucketKey)} · Submitted: ${b.applicationsSubmitted} · Completed: ${b.applicationsCompleted} · SLA Breaches: ${b.slaBreaches}</title>
-          </rect>
-          <rect x="${(cx - barW / 2 + barW * 0.54).toFixed(1)}" y="${cmpY.toFixed(1)}" width="${(barW * 0.46).toFixed(1)}" height="${cmpH.toFixed(1)}" rx="2" fill="#16A34A" fill-opacity="0.85">
-            <title>${escHtml(b.bucketKey)} · Completed: ${b.applicationsCompleted}</title>
-          </rect>
+          ${
+            showSubmitted
+              ? `<rect x="${(cx - barW / 2).toFixed(1)}" y="${subY.toFixed(1)}" width="${(barW * 0.5).toFixed(1)}" height="${subH.toFixed(1)}" rx="2" fill="var(--dip-chart-1)"><title>${escHtml(b.bucketKey)} · Submitted: ${b.applicationsSubmitted}</title></rect>`
+              : ""
+          }
+          ${
+            showCompleted
+              ? `<rect x="${(cx - barW / 2 + barW * 0.52).toFixed(1)}" y="${cmpY.toFixed(1)}" width="${(barW * 0.48).toFixed(1)}" height="${cmpH.toFixed(1)}" rx="2" fill="var(--dip-chart-3)"><title>${escHtml(b.bucketKey)} · Completed: ${b.applicationsCompleted}</title></rect>`
+              : ""
+          }
           ${breachMarker}
           ${
             showLabel
-              ? `<text x="${cx.toFixed(1)}" y="${height - 10}" text-anchor="middle" fill="currentColor" fill-opacity="0.6" font-size="10" font-family="JetBrains Mono, monospace">${escHtml(shortLabel)}</text>`
+              ? `<text x="${cx.toFixed(1)}" y="${height - 10}" text-anchor="middle" fill="var(--dip-chart-axis)" font-size="10" font-family="JetBrains Mono, monospace">${escHtml(shortLabel)}</text>`
               : ""
           }
         </g>
@@ -643,18 +928,32 @@ function renderTrendSvgChart(buckets: readonly TimeSeriesBucket[]): string {
     })
     .join("");
 
+  const legendItems = [
+    { id: "submitted", label: "Submitted", color: "var(--dip-chart-1)" },
+    { id: "completed", label: "Completed", color: "var(--dip-chart-3)" },
+    { id: "breaches", label: "SLA Spike (>1)", color: "var(--dip-chart-4)" },
+  ];
+
+  const legendHtml = legendItems
+    .map((item) => {
+      const hidden = state.hiddenTrendSeries.has(item.id);
+      return `
+        <button type="button" data-trend-toggle="${item.id}" class="trend-legend-btn inline-flex items-center gap-1.5 text-xs transition-opacity cursor-pointer ${hidden ? "opacity-40 line-through" : "text-[var(--dip-text-secondary)] hover:text-[var(--dip-text-primary)]"}">
+          <span class="h-2.5 w-2.5 rounded-xs shrink-0" style="background-color:${item.color}" aria-hidden="true"></span>
+          <span>${escHtml(item.label)}</span>
+        </button>
+      `;
+    })
+    .join("");
+
   return `
     <div class="space-y-3">
-      <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
-        <span>Submitted vs. Completed Applications by Bucket</span>
-        <div class="flex items-center gap-4">
-          <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-xs bg-blue-600"></span>Submitted</span>
-          <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-xs bg-green-600"></span>Completed</span>
-          <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-600"></span>SLA Spike (&gt;1)</span>
-        </div>
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <span class="text-xs text-[var(--dip-text-muted)]">Click legend items to toggle series visibility</span>
+        <div class="flex items-center gap-4">${legendHtml}</div>
       </div>
       <div class="w-full overflow-x-auto">
-        <svg viewBox="0 0 ${width} ${height}" class="w-full min-w-[600px] h-56 text-slate-700 dark:text-slate-300" role="img" aria-label="Application submission and completion time-series chart">
+        <svg viewBox="0 0 ${width} ${height}" class="w-full min-w-[600px] h-56" role="img" aria-label="Application submission and completion time-series chart">
           ${gridLines}
           ${bars}
         </svg>
@@ -669,70 +968,111 @@ function renderExecutiveView(data: WorkbenchOverviewResponse): string {
     return renderEmptyState("Try clearing the service or currency filter, or switching tenants.");
   }
 
-  const primaryCurrency = exec.revenue.currencies[0];
-  const secondaryCurrency = exec.revenue.currencies[1];
+  const revenueCurrencies = exec.revenue?.byCurrency ?? [];
+  const primaryCurrency = revenueCurrencies[0];
+  const secondaryCurrency = revenueCurrencies[1];
 
-  const kpis = `
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-      <div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5">
-        <div class="text-xs font-medium text-slate-500 dark:text-slate-400">Applications Submitted</div>
-        <div class="mt-2 font-display text-2xl font-bold text-slate-900 dark:text-slate-50 font-mono tabular-nums">${exec.funnel.submittedCount.toLocaleString("en-IN")}</div>
-        <div class="mt-2 text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums">
-          Completion ${fmtBps(exec.funnel.completionRateBps)} · Approval ${fmtBps(exec.funnel.approvalRateOfCompletedBps)}
-        </div>
-      </div>
+  const header = renderPageHeader(
+    "Executive Overview",
+    `${data.activeProfile.label} · Deterministic tenant-scoped summary`,
+  );
 
-      <div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5">
-        <div class="text-xs font-medium text-slate-500 dark:text-slate-400">Net Revenue After Refunds</div>
-        <div class="mt-2 font-display text-2xl font-bold text-slate-900 dark:text-slate-50 font-mono tabular-nums">
-          ${primaryCurrency ? escHtml(`${primaryCurrency.currency} ${primaryCurrency.formattedNetAfterRefunds}`) : "—"}
-        </div>
-        <div class="mt-2 text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums">
-          ${secondaryCurrency ? `Also ${escHtml(`${secondaryCurrency.currency} ${secondaryCurrency.formattedNetAfterRefunds}`)}` : `Refund rate ${fmtBps(primaryCurrency?.refundRateBps)}`}
-        </div>
-      </div>
+  const statStrip = renderStatStrip([
+    {
+      label: "Applications Submitted",
+      value: exec.funnel.submittedCount.toLocaleString("en-IN"),
+      context: `Completion ${fmtBps(exec.funnel.completionRateBps)} · Approval ${fmtBps(exec.funnel.approvalRateOfCompletedBps)}`,
+    },
+    {
+      label: "Net Revenue After Refunds",
+      value: primaryCurrency
+        ? `${primaryCurrency.currency} ${primaryCurrency.formattedNetRevenueAfterRefunds}`
+        : "—",
+      context: secondaryCurrency
+        ? `Also ${secondaryCurrency.currency} ${secondaryCurrency.formattedNetRevenueAfterRefunds}`
+        : `Refund rate ${fmtBps(primaryCurrency?.refundRateBps)}`,
+    },
+    {
+      label: "SLA Target Compliance",
+      value: fmtBps(exec.sla.slaComplianceRateBps),
+      context: `p95 ${fmtDurationMs(exec.sla.processingDuration?.p95Ms)} · ${exec.sla.criticalBreaches} critical`,
+    },
+    {
+      label: "API Health & Latency",
+      value: exec.apiHealth.totalRequests.toLocaleString("en-IN"),
+      context: `Error ${fmtBps(exec.apiHealth.errorRateBps)} · p95 ${fmtDurationMs(exec.apiHealth.p95LatencyMs)}`,
+    },
+  ]);
 
-      <div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5">
-        <div class="text-xs font-medium text-slate-500 dark:text-slate-400">SLA Target Compliance</div>
-        <div class="mt-2 font-display text-2xl font-bold text-slate-900 dark:text-slate-50 font-mono tabular-nums">${fmtBps(exec.sla.slaComplianceRateBps)}</div>
-        <div class="mt-2 text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums">
-          p95 ${fmtDurationMs(exec.sla.overallDuration.p95Ms)} · ${exec.sla.criticalBreachCount} critical breaches
+  const trendAndDonut = `
+    <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+      <section class="xl:col-span-7 rounded-[var(--dip-radius-lg)] border border-[var(--dip-border)] bg-[var(--dip-bg-surface)] p-6">
+        <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+          <h2 class="dip-font-display text-base font-semibold text-[var(--dip-text-primary)]">Lifecycle Volume &amp; SLA Trend</h2>
+          <span class="text-xs text-[var(--dip-text-muted)] font-mono dip-tabular">${exec.trend.buckets.length} buckets · ${escHtml(data.activeProfile.defaultTimeZone)}</span>
         </div>
-      </div>
+        ${renderTrendSvgChart(exec.trend.buckets)}
+      </section>
 
-      <div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5">
-        <div class="text-xs font-medium text-slate-500 dark:text-slate-400">API Requests &amp; Latency</div>
-        <div class="mt-2 font-display text-2xl font-bold text-slate-900 dark:text-slate-50 font-mono tabular-nums">${exec.apiHealth.totalRequests.toLocaleString("en-IN")}</div>
-        <div class="mt-2 text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums">
-          Error ${fmtBps(exec.apiHealth.errorRateBps)} · p95 ${fmtDurationMs(exec.apiHealth.p95LatencyMs)}
-        </div>
+      <div class="xl:col-span-5">
+        ${renderDonutChartCard({
+          title: "Regional Submission Share",
+          subtitle: "Aggregated by opaque regionCode",
+          centerLabel: "Submissions",
+          slices: exec.geographic.regions.map((r) => ({
+            id: r.regionCode,
+            label: r.regionCode,
+            value: r.submittedCount,
+          })),
+        })}
       </div>
     </div>
   `;
 
-  const trendCard = `
-    <section class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
-      <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4">
-        <h2 class="font-display text-base font-semibold text-slate-900 dark:text-slate-100">Lifecycle Volume &amp; SLA Trend</h2>
-        <span class="text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums">${exec.trend.buckets.length} buckets · ${escHtml(data.activeProfile.defaultTimeZone)}</span>
+  // Service Catalogue Pattern (dip-ui ServiceCataloguePattern)
+  const serviceCards = data.dashboards.services.servicePerformance.services
+    .filter((s) => s.serviceCode !== "__other__")
+    .map((s) => {
+      const active = state.serviceCode === s.serviceCode;
+      return `
+        <button
+          type="button"
+          data-filter-service-card="${escHtml(s.serviceCode)}"
+          class="svc-catalogue-card text-left rounded-[var(--dip-radius-lg)] border p-4 transition-colors cursor-pointer ${
+            active
+              ? "border-[var(--dip-accent)] bg-[var(--dip-accent-soft)]"
+              : "border-[var(--dip-border)] bg-[var(--dip-bg-surface)] hover:border-[var(--dip-border-strong)]"
+          }"
+        >
+          <div class="flex items-start justify-between gap-2">
+            <span class="font-mono text-xs font-semibold text-[var(--dip-text-primary)] truncate">${escHtml(s.serviceCode)}</span>
+            ${renderStatusLabel(
+              s.slaBreachCount > 0 ? "yellow" : "green",
+              s.slaBreachCount > 0 ? `${s.slaBreachCount} SLA` : "Nominal",
+            )}
+          </div>
+          <div class="mt-3 flex items-baseline justify-between text-xs text-[var(--dip-text-secondary)] font-mono dip-tabular">
+            <span>${s.submittedCount} submitted</span>
+            <span>${fmtBps(s.completionRateBps)} done</span>
+          </div>
+        </button>
+      `;
+    })
+    .join("");
+
+  const catalogueSection = `
+    <section class="space-y-3">
+      <div class="flex items-baseline justify-between gap-2">
+        <h2 class="dip-font-display text-base font-semibold text-[var(--dip-text-primary)]">Service Lines Catalogue</h2>
+        <span class="text-xs text-[var(--dip-text-muted)]">Click a service card to scope dashboard filters</span>
       </div>
-      ${renderTrendSvgChart(exec.trend.buckets)}
+      ${
+        serviceCards
+          ? `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">${serviceCards}</div>`
+          : `<div class="rounded-[var(--dip-radius-lg)] border border-[var(--dip-border)] bg-[var(--dip-bg-surface)] p-4 text-xs text-[var(--dip-text-muted)]">No application service events in the current filter scope.</div>`
+      }
     </section>
   `;
-
-  const regionRows = exec.geographic.regions
-    .map(
-      (r) => `
-      <tr class="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40">
-        <td class="py-2.5 pr-4 font-mono text-xs font-medium text-slate-900 dark:text-slate-100">${escHtml(r.regionCode)}</td>
-        <td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums">${r.submittedCount}</td>
-        <td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums">${r.completedCount}</td>
-        <td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums">${fmtBps(r.completionRateBps)}</td>
-        <td class="py-2.5 pl-3 text-right font-mono text-xs tabular-nums">${r.slaBreachCount}</td>
-      </tr>
-    `,
-    )
-    .join("");
 
   const cohortRows = data.advanced.cohortRetention.cohorts
     .slice(0, 6)
@@ -740,66 +1080,43 @@ function renderExecutiveView(data: WorkbenchOverviewResponse): string {
       const cells = [0, 1, 2]
         .map((offset) => {
           const p = c.periods[offset];
-          return `<td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums">${p ? `${fmtBps(p.retentionRateBps)} (${p.activeAccountsCount})` : "—"}</td>`;
+          return `<td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${p ? `${fmtBps(p.retentionRateBps)} (${p.activeAccountsCount})` : "—"}</td>`;
         })
         .join("");
       return `
-        <tr class="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40">
-          <td class="py-2.5 pr-4 font-mono text-xs font-medium text-slate-900 dark:text-slate-100">${escHtml(c.cohortBucket)}</td>
-          <td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums">${c.cohortSize}</td>
+        <tr class="border-t border-[var(--dip-border)] hover:bg-[var(--dip-bg-subtle)]">
+          <td class="py-2.5 pr-4 font-mono text-xs font-medium text-[var(--dip-text-primary)]">${escHtml(c.cohortBucket)}</td>
+          <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${c.cohortSize}</td>
           ${cells}
         </tr>
       `;
     })
     .join("");
 
-  const bottomGrid = `
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <section class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
-        <div class="flex items-baseline justify-between gap-2 mb-4">
-          <h2 class="font-display text-base font-semibold text-slate-900 dark:text-slate-100">Geographic Distribution</h2>
-          <span class="text-xs text-slate-500 dark:text-slate-400">Aggregated by regionCode</span>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse">
-            <thead>
-              <tr class="text-xs font-medium text-slate-500 dark:text-slate-400">
-                <th class="pb-2.5 pr-4">Region</th>
-                <th class="pb-2.5 px-3 text-right">Submitted</th>
-                <th class="pb-2.5 px-3 text-right">Completed</th>
-                <th class="pb-2.5 px-3 text-right">Completion</th>
-                <th class="pb-2.5 pl-3 text-right">Breaches</th>
-              </tr>
-            </thead>
-            <tbody>${regionRows || `<tr><td colspan="5" class="py-4 text-xs text-slate-500">No regional rows</td></tr>`}</tbody>
-          </table>
-        </div>
-      </section>
-
-      <section class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
-        <div class="flex items-baseline justify-between gap-2 mb-4">
-          <h2 class="font-display text-base font-semibold text-slate-900 dark:text-slate-100">Account Cohort Retention</h2>
-          <span class="text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums">${data.advanced.cohortRetention.trackedAccountsCount} opaque accounts · ${fmtBps(exec.accountActivity.repeatAccountRateBps)} repeat</span>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse">
-            <thead>
-              <tr class="text-xs font-medium text-slate-500 dark:text-slate-400">
-                <th class="pb-2.5 pr-4">Cohort</th>
-                <th class="pb-2.5 px-3 text-right">Size</th>
-                <th class="pb-2.5 px-3 text-right">Period 0</th>
-                <th class="pb-2.5 px-3 text-right">Period +1</th>
-                <th class="pb-2.5 pl-3 text-right">Period +2</th>
-              </tr>
-            </thead>
-            <tbody>${cohortRows || `<tr><td colspan="5" class="py-4 text-xs text-slate-500">No tracked account cohorts</td></tr>`}</tbody>
-          </table>
-        </div>
-      </section>
-    </div>
+  const cohortTable = `
+    <section class="rounded-[var(--dip-radius-lg)] border border-[var(--dip-border)] bg-[var(--dip-bg-surface)] p-6">
+      <div class="flex items-baseline justify-between gap-2 mb-4">
+        <h2 class="dip-font-display text-base font-semibold text-[var(--dip-text-primary)]">Account Cohort Retention</h2>
+        <span class="text-xs text-[var(--dip-text-muted)] font-mono dip-tabular">${data.advanced.cohortRetention.trackedAccountsCount} opaque accounts · ${fmtBps(exec.accountActivity.repeatAccountRateBps)} repeat</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="text-xs font-medium text-[var(--dip-text-muted)]">
+              <th class="pb-2.5 pr-4">Cohort</th>
+              <th class="pb-2.5 px-3 text-right">Size</th>
+              <th class="pb-2.5 px-3 text-right">Period 0</th>
+              <th class="pb-2.5 px-3 text-right">Period +1</th>
+              <th class="pb-2.5 pl-3 text-right">Period +2</th>
+            </tr>
+          </thead>
+          <tbody>${cohortRows || `<tr><td colspan="5" class="py-4 text-xs text-[var(--dip-text-muted)]">No tracked account cohorts</td></tr>`}</tbody>
+        </table>
+      </div>
+    </section>
   `;
 
-  return `${kpis}${trendCard}${bottomGrid}`;
+  return `${header}${statStrip}${trendAndDonut}${catalogueSection}${cohortTable}`;
 }
 
 function renderOperationsView(data: WorkbenchOverviewResponse): string {
@@ -808,44 +1125,76 @@ function renderOperationsView(data: WorkbenchOverviewResponse): string {
   const backlog = data.advanced.backlogAging;
   const stages = data.advanced.customFunnel.stages;
 
-  const maxStage = Math.max(1, ...stages.map((s) => s.reachedCount));
+  const header = renderPageHeader(
+    "Operations & Backlog",
+    "Custom-stage funnel progression, SLA bottlenecks, and open queue aging histogram",
+  );
+
+  const statStrip = renderStatStrip([
+    {
+      label: "Tracked Applications",
+      value: ops.statusDistribution.trackedApplicationsCount.toLocaleString("en-IN"),
+      context: `${data.dashboards.executive.funnel.completedCount} completed`,
+    },
+    {
+      label: "Open Backlog",
+      value: backlog.openApplicationsCount.toLocaleString("en-IN"),
+      context: `Oldest open ${fmtDurationMs(backlog.oldestOpenAgeMs)}`,
+    },
+    {
+      label: "SLA Compliance",
+      value: fmtBps(sla.slaComplianceRateBps),
+      context: `${sla.withinSlaTargetCount} of ${sla.completedApplicationsCount} within target`,
+    },
+    {
+      label: "Handling Time (p50 / p95)",
+      value: fmtDurationMs(sla.processingDuration?.p50Ms),
+      context: `p95 ${fmtDurationMs(sla.processingDuration?.p95Ms)}`,
+    },
+  ]);
+
+  const maxStage = Math.max(stages[0]?.reachedCount ?? 1, 1);
+  // dip-ui FunnelChart pattern (AnalyticalCharts.tsx)
   const funnelBars = stages
-    .map((s) => {
-      const pct = Math.round((s.reachedCount / maxStage) * 100);
+    .map((s, idx) => {
+      const widthPct = Math.max(12, Math.round((s.reachedCount / maxStage) * 100));
+      const convStep = s.conversionFromPreviousBps !== null ? ` · ${(s.conversionFromPreviousBps / 100).toFixed(0)}% step` : "";
       return `
         <div class="space-y-1.5">
-          <div class="flex items-center justify-between text-xs">
-            <span class="font-medium text-slate-700 dark:text-slate-200 font-mono">${escHtml(s.stage)}</span>
-            <span class="font-mono tabular-nums text-slate-500 dark:text-slate-400">${s.reachedCount} reached · ${fmtBps(s.conversionFromStartBps)} of start</span>
+          <div class="flex items-center justify-between gap-2 text-xs">
+            <span class="font-medium text-[var(--dip-text-primary)] font-mono">${escHtml(s.stage)}</span>
+            <span class="font-mono dip-tabular text-[var(--dip-text-secondary)]">
+              ${s.reachedCount.toLocaleString("en-IN")}${idx > 0 ? convStep : ""}
+            </span>
           </div>
-          <div class="h-2.5 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-            <div class="h-full bg-blue-600 rounded-full" style="width:${pct}%"></div>
+          <div class="w-full rounded-[var(--dip-radius-sm)] bg-[var(--dip-bg-subtle)] p-1">
+            <span class="block h-5 rounded-[var(--dip-radius-sm)]" style="width:${widthPct}%;background-color:${chartColor(idx)}"></span>
           </div>
         </div>
       `;
     })
     .join("");
 
-  const agingBands: Array<{ key: keyof typeof backlog.buckets; label: string; tone: string }> = [
-    { key: "under_1h", label: "Under 1 hour", tone: "bg-green-600" },
-    { key: "from_1h_to_24h", label: "1 to 24 hours", tone: "bg-blue-600" },
-    { key: "from_1d_to_7d", label: "1 to 7 days", tone: "bg-amber-600" },
-    { key: "over_7d", label: "Over 7 days (At Risk)", tone: "bg-red-600" },
+  const agingBands: Array<{ key: keyof typeof backlog.buckets; label: string; color: string }> = [
+    { key: "under_1h", label: "Under 1 hour", color: "var(--dip-chart-3)" },
+    { key: "from_1h_to_24h", label: "1 to 24 hours", color: "var(--dip-chart-6)" },
+    { key: "from_1d_to_7d", label: "1 to 7 days", color: "var(--dip-chart-4)" },
+    { key: "over_7d", label: "Over 7 days (At Risk)", color: "var(--dip-chart-1)" },
   ];
   const maxOpen = Math.max(1, backlog.openApplicationsCount);
 
   const agingHtml = agingBands
     .map((b) => {
       const val = backlog.buckets[b.key];
-      const pct = Math.round((val / maxOpen) * 100);
+      const pct = Math.max(val > 0 ? 8 : 0, Math.round((val / maxOpen) * 100));
       return `
         <div class="space-y-1.5">
           <div class="flex items-center justify-between text-xs">
-            <span class="font-medium text-slate-700 dark:text-slate-200">${escHtml(b.label)}</span>
-            <span class="font-mono tabular-nums text-slate-600 dark:text-slate-300">${val} open</span>
+            <span class="font-medium text-[var(--dip-text-primary)]">${escHtml(b.label)}</span>
+            <span class="font-mono dip-tabular text-[var(--dip-text-secondary)]">${val} open</span>
           </div>
-          <div class="h-2.5 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-            <div class="h-full ${b.tone} rounded-full" style="width:${pct}%"></div>
+          <div class="w-full rounded-[var(--dip-radius-sm)] bg-[var(--dip-bg-subtle)] p-1">
+            <span class="block h-4 rounded-[var(--dip-radius-sm)]" style="width:${pct}%;background-color:${b.color}"></span>
           </div>
         </div>
       `;
@@ -855,78 +1204,69 @@ function renderOperationsView(data: WorkbenchOverviewResponse): string {
   const bottleneckRows = sla.stageBottlenecks
     .map(
       (b) => `
-      <tr class="border-t border-slate-100 dark:border-slate-800">
-        <td class="py-2.5 pr-4 font-mono text-xs text-slate-900 dark:text-slate-100">${escHtml(b.serviceCode)}</td>
-        <td class="py-2.5 px-3 font-mono text-xs text-slate-600 dark:text-slate-300">${escHtml(b.stageCode)}</td>
-        <td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums text-amber-700 dark:text-amber-400">${b.breachCount}</td>
-        <td class="py-2.5 pl-3 text-right font-mono text-xs tabular-nums">${fmtDurationMs(b.maxOverrunMs)}</td>
+      <tr class="border-t border-[var(--dip-border)]">
+        <td class="py-2.5 pr-4 font-mono text-xs text-[var(--dip-text-primary)]">${escHtml(b.stageCode)}</td>
+        <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${b.warningCount}</td>
+        <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${b.criticalCount}</td>
+        <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${renderStatusLabel(b.criticalCount > 0 ? "red" : "orange", String(b.breachCount))}</td>
+        <td class="py-2.5 pl-3 text-right font-mono text-xs dip-tabular">${fmtDurationMs(b.maxOverrunMs)}</td>
       </tr>
     `,
     )
     .join("");
 
-  const statusRows = Object.entries(ops.statusDistribution.countsByStatus)
-    .map(
-      ([status, count]) => `
-      <tr class="border-t border-slate-100 dark:border-slate-800">
-        <td class="py-2.5 pr-4 font-mono text-xs text-slate-900 dark:text-slate-100">${escHtml(status)}</td>
-        <td class="py-2.5 pl-3 text-right font-mono text-xs tabular-nums">${count}</td>
-      </tr>
-    `,
-    )
-    .join("");
+  const statusSlices = (ops.statusDistribution.currentStatuses ?? []).map((s) => ({
+    id: s.status,
+    label: s.status,
+    value: s.applicationCount,
+  }));
 
   return `
+    ${header}
+    ${statStrip}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <section class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-5">
+      <section class="rounded-[var(--dip-radius-lg)] border border-[var(--dip-border)] bg-[var(--dip-bg-surface)] p-6 space-y-4">
         <div class="flex items-baseline justify-between gap-2">
-          <h2 class="font-display text-base font-semibold text-slate-900 dark:text-slate-100">Custom-Stage Application Funnel</h2>
-          <span class="text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums">${ops.statusDistribution.trackedApplicationsCount} tracked</span>
+          <h2 class="dip-font-display text-base font-semibold text-[var(--dip-text-primary)]">Stage Conversion Funnel</h2>
+          <span class="text-xs text-[var(--dip-text-muted)] font-mono dip-tabular">${ops.statusDistribution.trackedApplicationsCount} tracked</span>
         </div>
-        <div class="space-y-4">${funnelBars}</div>
+        <div class="space-y-3">${funnelBars}</div>
       </section>
 
-      <section class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-5">
+      <section class="rounded-[var(--dip-radius-lg)] border border-[var(--dip-border)] bg-[var(--dip-bg-surface)] p-6 space-y-4">
         <div class="flex items-baseline justify-between gap-2">
-          <h2 class="font-display text-base font-semibold text-slate-900 dark:text-slate-100">Open Backlog Aging Histogram</h2>
-          <span class="text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums">${backlog.openApplicationsCount} open · oldest ${fmtDurationMs(backlog.oldestOpenAgeMs)}</span>
+          <h2 class="dip-font-display text-base font-semibold text-[var(--dip-text-primary)]">Open Backlog Aging Histogram</h2>
+          <span class="text-xs text-[var(--dip-text-muted)] font-mono dip-tabular">${backlog.openApplicationsCount} open</span>
         </div>
-        <div class="space-y-4">${agingHtml}</div>
+        <div class="space-y-3">${agingHtml}</div>
       </section>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <section class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
-        <h2 class="font-display text-base font-semibold text-slate-900 dark:text-slate-100 mb-4">SLA Stage Bottlenecks</h2>
+      <section class="rounded-[var(--dip-radius-lg)] border border-[var(--dip-border)] bg-[var(--dip-bg-surface)] p-6">
+        <h2 class="dip-font-display text-base font-semibold text-[var(--dip-text-primary)] mb-4">SLA Stage Bottlenecks</h2>
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse">
             <thead>
-              <tr class="text-xs font-medium text-slate-500 dark:text-slate-400">
-                <th class="pb-2.5 pr-4">Service</th>
-                <th class="pb-2.5 px-3">Stage</th>
+              <tr class="text-xs font-medium text-[var(--dip-text-muted)]">
+                <th class="pb-2.5 pr-4">Stage</th>
+                <th class="pb-2.5 px-3 text-right">Warn</th>
+                <th class="pb-2.5 px-3 text-right">Crit</th>
                 <th class="pb-2.5 px-3 text-right">Breaches</th>
                 <th class="pb-2.5 pl-3 text-right">Max Overrun</th>
               </tr>
             </thead>
-            <tbody>${bottleneckRows || `<tr><td colspan="4" class="py-4 text-xs text-slate-500">Zero SLA stage bottlenecks detected.</td></tr>`}</tbody>
+            <tbody>${bottleneckRows || `<tr><td colspan="5" class="py-4 text-xs text-[var(--dip-text-muted)]">Zero SLA stage bottlenecks detected.</td></tr>`}</tbody>
           </table>
         </div>
       </section>
 
-      <section class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
-        <h2 class="font-display text-base font-semibold text-slate-900 dark:text-slate-100 mb-4">Current Status Distribution</h2>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse">
-            <thead>
-              <tr class="text-xs font-medium text-slate-500 dark:text-slate-400">
-                <th class="pb-2.5 pr-4">Latest Status</th>
-                <th class="pb-2.5 pl-3 text-right">Applications</th>
-              </tr>
-            </thead>
-            <tbody>${statusRows}</tbody>
-          </table>
-        </div>
-      </section>
+      ${renderDonutChartCard({
+        title: "Latest Application Status Mix",
+        subtitle: "Reconciled chronologically by eventTimestamp",
+        centerLabel: "Applications",
+        slices: statusSlices,
+      })}
     </div>
   `;
 }
@@ -934,16 +1274,59 @@ function renderOperationsView(data: WorkbenchOverviewResponse): string {
 function renderFinanceView(data: WorkbenchOverviewResponse): string {
   const fin = data.dashboards.finance;
   const econ = data.advanced.unitEconomics;
+  const rec = fin.reconciliation;
 
-  const currencyRows = data.dashboards.executive.revenue.currencies
+  const header = renderPageHeader(
+    "Finance & Unit Economics",
+    "Integer minor-unit ledger, payment reconciliation states, and per-service net margin",
+  );
+
+  const statStrip = renderStatStrip([
+    {
+      label: "Payment Success Rate",
+      value: fmtBps(fin.paymentMetrics.successRateBps),
+      context: `${fin.paymentMetrics.succeededCount} succeeded · ${fin.paymentMetrics.failedCount} failed`,
+    },
+    {
+      label: "Reconciled Settled",
+      value: rec.settledCount.toLocaleString("en-IN"),
+      context: `of ${rec.trackedPaymentRefsCount} payment references`,
+    },
+    {
+      label: "Unsettled Initiated",
+      value: rec.unsettledInitiatedCount.toLocaleString("en-IN"),
+      context: `${rec.failedOnlyCount} terminal failures`,
+    },
+    {
+      label: "Discrepancies",
+      value: String(rec.orphanedRefundCount + rec.overRefundedCount + rec.currencyDiscrepancyCount),
+      context: `Orphan ${rec.orphanedRefundCount} · Over-refund ${rec.overRefundedCount}`,
+    },
+  ]);
+
+  const currencyRows = (fin.revenueAndRefunds?.byCurrency ?? [])
     .map(
       (c) => `
-      <tr class="border-t border-slate-100 dark:border-slate-800">
-        <td class="py-2.5 pr-4 font-mono text-xs font-semibold text-slate-900 dark:text-slate-100">${escHtml(c.currency)}</td>
-        <td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums">${escHtml(fmtMinor(c.grossRevenueMinor, c.currency))}</td>
-        <td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums">${escHtml(fmtMinor(c.totalFeesMinor, c.currency))}</td>
-        <td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums">${escHtml(fmtMinor(c.totalRefundedMinor, c.currency))}</td>
-        <td class="py-2.5 pl-3 text-right font-mono text-xs tabular-nums font-semibold text-green-700 dark:text-green-400">${escHtml(fmtMinor(c.netRevenueAfterRefundsMinor, c.currency))}</td>
+      <tr class="border-t border-[var(--dip-border)]">
+        <td class="py-2.5 pr-4 font-mono text-xs font-semibold text-[var(--dip-text-primary)]">${escHtml(c.currency)}</td>
+        <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${escHtml(fmtMinor(c.grossRevenueMinor, c.currency))}</td>
+        <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${escHtml(fmtMinor(c.totalFeesMinor, c.currency))}</td>
+        <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${escHtml(fmtMinor(c.totalRefundedMinor, c.currency))}</td>
+        <td class="py-2.5 pl-3 text-right font-mono text-xs dip-tabular font-semibold text-[var(--dip-success)]">${escHtml(fmtMinor(c.netRevenueAfterRefundsMinor, c.currency))}</td>
+      </tr>
+    `,
+    )
+    .join("");
+
+  const methods = (fin.paymentMetrics.byMethod ?? [])
+    .filter((m) => state.financeMethodFilter === "all" || m.paymentMethodCategory === state.financeMethodFilter)
+    .map(
+      (m) => `
+      <tr class="border-t border-[var(--dip-border)]">
+        <td class="py-2.5 pr-4 font-mono text-xs font-medium text-[var(--dip-text-primary)]">${escHtml(m.paymentMethodCategory.toUpperCase())}</td>
+        <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${m.succeededCount}</td>
+        <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${m.failedCount}</td>
+        <td class="py-2.5 pl-3 text-right font-mono text-xs dip-tabular">${fmtBps(m.successRateBps)}</td>
       </tr>
     `,
     )
@@ -952,74 +1335,86 @@ function renderFinanceView(data: WorkbenchOverviewResponse): string {
   const unitRows = econ.rows
     .map(
       (r) => `
-      <tr class="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40">
-        <td class="py-2.5 pr-4 font-mono text-xs font-medium text-slate-900 dark:text-slate-100">${escHtml(r.serviceCode)}</td>
+      <tr class="border-t border-[var(--dip-border)] hover:bg-[var(--dip-bg-subtle)]">
+        <td class="py-2.5 pr-4 font-mono text-xs font-medium text-[var(--dip-text-primary)]">${escHtml(r.serviceCode)}</td>
         <td class="py-2.5 px-2 font-mono text-xs">${escHtml(r.currency)}</td>
-        <td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums">${r.completedApplicationsCount}</td>
-        <td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums">${escHtml(fmtMinor(r.grossRevenueMinor, r.currency))}</td>
-        <td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums">${escHtml(fmtMinor(r.gatewayFeesMinor + r.refundedMinor + r.partnerCommissionMinor, r.currency))}</td>
-        <td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums font-semibold">${escHtml(fmtMinor(r.netContributionMinor, r.currency))}</td>
-        <td class="py-2.5 pl-3 text-right font-mono text-xs tabular-nums">${fmtBps(r.netMarginBps)}</td>
+        <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${r.completedApplicationsCount}</td>
+        <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${escHtml(fmtMinor(r.grossRevenueMinor, r.currency))}</td>
+        <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${escHtml(fmtMinor(r.gatewayFeesMinor + r.refundedMinor + r.partnerCommissionMinor, r.currency))}</td>
+        <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular font-semibold">${escHtml(fmtMinor(r.netContributionMinor, r.currency))}</td>
+        <td class="py-2.5 pl-3 text-right font-mono text-xs dip-tabular">${fmtBps(r.netMarginBps)}</td>
       </tr>
     `,
     )
     .join("");
 
-  const rec = fin.reconciliation;
+  const methodTabs = ["all", ...(fin.paymentMetrics.byMethod ?? []).map((m) => m.paymentMethodCategory)]
+    .map(
+      (m) => `
+      <button type="button" data-fin-method="${escHtml(m)}" class="fin-method-btn px-2.5 py-1 rounded-[var(--dip-radius-sm)] text-xs font-medium whitespace-nowrap shrink-0 ${
+        state.financeMethodFilter === m
+          ? "bg-[var(--dip-bg-surface)] text-[var(--dip-text-primary)] shadow-xs"
+          : "text-[var(--dip-text-muted)] hover:text-[var(--dip-text-primary)]"
+      }">${escHtml(m === "all" ? "All" : m.toUpperCase())}</button>
+    `,
+    )
+    .join("");
+
   return `
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-      <div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5">
-        <div class="text-xs font-medium text-slate-500 dark:text-slate-400">Payment Success Rate</div>
-        <div class="mt-2 font-display text-2xl font-bold font-mono tabular-nums">${fmtBps(fin.paymentMetrics.successRateBps)}</div>
-        <div class="mt-2 text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums">${fin.paymentMetrics.succeededCount} succeeded · ${fin.paymentMetrics.failedCount} failed</div>
-      </div>
-      <div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5">
-        <div class="text-xs font-medium text-slate-500 dark:text-slate-400">Reconciled Settled</div>
-        <div class="mt-2 font-display text-2xl font-bold font-mono tabular-nums text-green-700 dark:text-green-400">${rec.settledCount}</div>
-        <div class="mt-2 text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums">of ${rec.totalTrackedPayments} payment references</div>
-      </div>
-      <div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5">
-        <div class="text-xs font-medium text-slate-500 dark:text-slate-400">Unsettled Initiated</div>
-        <div class="mt-2 font-display text-2xl font-bold font-mono tabular-nums text-amber-700 dark:text-amber-400">${rec.unsettledInitiatedCount}</div>
-        <div class="mt-2 text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums">${rec.failedOnlyCount} terminal failures</div>
-      </div>
-      <div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5">
-        <div class="text-xs font-medium text-slate-500 dark:text-slate-400">Discrepancies</div>
-        <div class="mt-2 font-display text-2xl font-bold font-mono tabular-nums">${rec.orphanedRefundCount + rec.overRefundedCount + rec.currencyDiscrepancyCount}</div>
-        <div class="mt-2 text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums">Orphan ${rec.orphanedRefundCount} · Over-refund ${rec.overRefundedCount}</div>
-      </div>
+    ${header}
+    ${statStrip}
+    <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+      <section class="xl:col-span-7 rounded-[var(--dip-radius-lg)] border border-[var(--dip-border)] bg-[var(--dip-bg-surface)] p-6">
+        <div class="flex items-baseline justify-between gap-2 mb-4">
+          <h2 class="dip-font-display text-base font-semibold text-[var(--dip-text-primary)]">Currency-Separated Financial Ledger</h2>
+          <span class="text-xs text-[var(--dip-text-muted)]">BigInt minor-unit arithmetic</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="text-xs font-medium text-[var(--dip-text-muted)]">
+                <th class="pb-2.5 pr-4">Currency</th>
+                <th class="pb-2.5 px-3 text-right">Gross Revenue</th>
+                <th class="pb-2.5 px-3 text-right">Fees</th>
+                <th class="pb-2.5 px-3 text-right">Refunded</th>
+                <th class="pb-2.5 pl-3 text-right">Net Settled</th>
+              </tr>
+            </thead>
+            <tbody>${currencyRows || `<tr><td colspan="5" class="py-4 text-xs text-[var(--dip-text-muted)]">No financial transactions in window.</td></tr>`}</tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="xl:col-span-5 rounded-[var(--dip-radius-lg)] border border-[var(--dip-border)] bg-[var(--dip-bg-surface)] p-6 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h2 class="dip-font-display text-base font-semibold text-[var(--dip-text-primary)]">Payment Channels</h2>
+          <div class="inline-flex items-center p-0.5 rounded-[var(--dip-radius-md)] bg-[var(--dip-bg-subtle)] border border-[var(--dip-border)]">${methodTabs}</div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="text-xs font-medium text-[var(--dip-text-muted)]">
+                <th class="pb-2.5 pr-4">Method</th>
+                <th class="pb-2.5 px-3 text-right">Paid</th>
+                <th class="pb-2.5 px-3 text-right">Failed</th>
+                <th class="pb-2.5 pl-3 text-right">Success</th>
+              </tr>
+            </thead>
+            <tbody>${methods || `<tr><td colspan="4" class="py-4 text-xs text-[var(--dip-text-muted)]">No payment methods match filter.</td></tr>`}</tbody>
+          </table>
+        </div>
+      </section>
     </div>
 
-    <section class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
+    <section class="rounded-[var(--dip-radius-lg)] border border-[var(--dip-border)] bg-[var(--dip-bg-surface)] p-6">
       <div class="flex items-baseline justify-between gap-2 mb-4">
-        <h2 class="font-display text-base font-semibold text-slate-900 dark:text-slate-100">Currency-Separated Financial Ledger</h2>
-        <span class="text-xs text-slate-500 dark:text-slate-400">BigInt minor-unit arithmetic (zero floating-point drift)</span>
+        <h2 class="dip-font-display text-base font-semibold text-[var(--dip-text-primary)]">Service Unit Economics &amp; Net Margin</h2>
+        <span class="text-xs text-[var(--dip-text-muted)]">Gross minus fees, refunds &amp; partner commissions</span>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
           <thead>
-            <tr class="text-xs font-medium text-slate-500 dark:text-slate-400">
-              <th class="pb-2.5 pr-4">Currency</th>
-              <th class="pb-2.5 px-3 text-right">Gross Revenue</th>
-              <th class="pb-2.5 px-3 text-right">Gateway Fees</th>
-              <th class="pb-2.5 px-3 text-right">Refunded</th>
-              <th class="pb-2.5 pl-3 text-right">Net After Refunds</th>
-            </tr>
-          </thead>
-          <tbody>${currencyRows || `<tr><td colspan="5" class="py-4 text-xs text-slate-500">No financial transactions in window.</td></tr>`}</tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
-      <div class="flex items-baseline justify-between gap-2 mb-4">
-        <h2 class="font-display text-base font-semibold text-slate-900 dark:text-slate-100">Service Unit Economics &amp; Net Margin</h2>
-        <span class="text-xs text-slate-500 dark:text-slate-400">Gross minus fees, refunds &amp; partner commissions</span>
-      </div>
-      <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse">
-          <thead>
-            <tr class="text-xs font-medium text-slate-500 dark:text-slate-400">
+            <tr class="text-xs font-medium text-[var(--dip-text-muted)]">
               <th class="pb-2.5 pr-4">Service</th>
               <th class="pb-2.5 px-2">Cur</th>
               <th class="pb-2.5 px-3 text-right">Completed</th>
@@ -1029,7 +1424,7 @@ function renderFinanceView(data: WorkbenchOverviewResponse): string {
               <th class="pb-2.5 pl-3 text-right">Net Margin</th>
             </tr>
           </thead>
-          <tbody>${unitRows || `<tr><td colspan="7" class="py-4 text-xs text-slate-500">No service unit economics rows.</td></tr>`}</tbody>
+          <tbody>${unitRows || `<tr><td colspan="7" class="py-4 text-xs text-[var(--dip-text-muted)]">No service unit economics rows.</td></tr>`}</tbody>
         </table>
       </div>
     </section>
@@ -1038,16 +1433,21 @@ function renderFinanceView(data: WorkbenchOverviewResponse): string {
 
 function renderEntitiesView(data: WorkbenchOverviewResponse): string {
   const q = state.entitiesSearch.trim().toLowerCase();
+  const header = renderPageHeader(
+    "Partners, Operators & Services",
+    "Workforce turnaround, queue throughput, and partner commission tracking",
+  );
+
   const tabBar = `
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <div class="inline-flex items-center p-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+      <div class="inline-flex items-center p-1 rounded-[var(--dip-radius-md)] bg-[var(--dip-bg-subtle)] border border-[var(--dip-border)]">
         ${(["partners", "operators", "services"] as const)
           .map(
             (t) => `
-          <button type="button" data-entity-tab="${t}" class="entity-tab-btn px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
+          <button type="button" data-entity-tab="${t}" class="entity-tab-btn px-3.5 py-1.5 rounded-[var(--dip-radius-sm)] text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
             state.entitiesTab === t
-              ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-xs"
-              : "text-slate-600 dark:text-slate-300"
+              ? "bg-[var(--dip-bg-surface)] text-[var(--dip-text-primary)] shadow-xs"
+              : "text-[var(--dip-text-muted)] hover:text-[var(--dip-text-primary)]"
           }">
             ${t === "partners" ? "Partners" : t === "operators" ? "Operators & Queues" : "Services"}
           </button>
@@ -1060,8 +1460,8 @@ function renderEntitiesView(data: WorkbenchOverviewResponse): string {
         id="entity-search-input"
         type="search"
         value="${escHtml(state.entitiesSearch)}"
-        placeholder="Filter by reference or code..."
-        class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-slate-100 w-full sm:w-64 focus-visible:outline-2 focus-visible:outline-blue-600"
+        placeholder="Filter by opaque reference or code..."
+        class="px-3 py-1.5 rounded-[var(--dip-radius-md)] border border-[var(--dip-border)] bg-[var(--dip-bg-subtle)] text-xs text-[var(--dip-text-primary)] w-full sm:w-64 focus-visible:outline-2 focus-visible:outline-[var(--dip-focus-ring)]"
       />
     </div>
   `;
@@ -1075,13 +1475,13 @@ function renderEntitiesView(data: WorkbenchOverviewResponse): string {
           .map(([c, amt]) => fmtMinor(amt, c))
           .join(", ");
         return `
-          <tr class="border-t border-slate-100 dark:border-slate-800">
-            <td class="py-2.5 pr-4 font-mono text-xs font-medium text-slate-900 dark:text-slate-100">${escHtml(p.partnerRef)}</td>
-            <td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums">${p.assignedCount}</td>
-            <td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums">${p.completedCount}</td>
-            <td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums">${fmtBps(p.completionRateBps)}</td>
-            <td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums">${fmtDurationMs(p.turnaround.p50Ms)}</td>
-            <td class="py-2.5 pl-3 text-right font-mono text-xs tabular-nums">${escHtml(comm || "—")}</td>
+          <tr class="border-t border-[var(--dip-border)] hover:bg-[var(--dip-bg-subtle)]">
+            <td class="py-2.5 pr-4 font-mono text-xs font-medium text-[var(--dip-text-primary)]">${escHtml(p.partnerRef)}</td>
+            <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${p.assignedCount}</td>
+            <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${p.workCompletedCount}</td>
+            <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${fmtBps(p.completionRateBps)}</td>
+            <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${fmtDurationMs(p.turnaround?.p50Ms)}</td>
+            <td class="py-2.5 pl-3 text-right font-mono text-xs dip-tabular">${escHtml(comm || "—")}</td>
           </tr>
         `;
       })
@@ -1089,7 +1489,7 @@ function renderEntitiesView(data: WorkbenchOverviewResponse): string {
     tableHtml = `
       <table class="w-full text-left border-collapse">
         <thead>
-          <tr class="text-xs font-medium text-slate-500 dark:text-slate-400">
+          <tr class="text-xs font-medium text-[var(--dip-text-muted)]">
             <th class="pb-2.5 pr-4">Partner Ref</th>
             <th class="pb-2.5 px-3 text-right">Assigned</th>
             <th class="pb-2.5 px-3 text-right">Completed</th>
@@ -1098,7 +1498,7 @@ function renderEntitiesView(data: WorkbenchOverviewResponse): string {
             <th class="pb-2.5 pl-3 text-right">Commissions</th>
           </tr>
         </thead>
-        <tbody>${rows || `<tr><td colspan="6" class="py-4 text-xs text-slate-500">No partner records match filter.</td></tr>`}</tbody>
+        <tbody>${rows || `<tr><td colspan="6" class="py-4 text-xs text-[var(--dip-text-muted)]">No partner records match filter.</td></tr>`}</tbody>
       </table>
     `;
   } else if (state.entitiesTab === "operators") {
@@ -1106,13 +1506,13 @@ function renderEntitiesView(data: WorkbenchOverviewResponse): string {
       .filter((o) => !q || o.operatorRef.toLowerCase().includes(q))
       .map(
         (o) => `
-        <tr class="border-t border-slate-100 dark:border-slate-800">
-          <td class="py-2.5 pr-4 font-mono text-xs font-medium text-slate-900 dark:text-slate-100">${escHtml(o.operatorRef)}</td>
-          <td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums">${o.totalActions}</td>
-          <td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums">${o.queuesTouchedCount}</td>
-          <td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums">${fmtBps(o.approvalRateBps)}</td>
-          <td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums">${fmtBps(o.escalationRateBps)}</td>
-          <td class="py-2.5 pl-3 text-right font-mono text-xs tabular-nums">${fmtDurationMs(o.handlingDuration.avgMs)}</td>
+        <tr class="border-t border-[var(--dip-border)] hover:bg-[var(--dip-bg-subtle)]">
+          <td class="py-2.5 pr-4 font-mono text-xs font-medium text-[var(--dip-text-primary)]">${escHtml(o.operatorRef)}</td>
+          <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${o.totalActions}</td>
+          <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${o.distinctQueuesCount}</td>
+          <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${fmtBps(o.approvalDecisionRateBps)}</td>
+          <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${fmtBps(o.escalationRateBps)}</td>
+          <td class="py-2.5 pl-3 text-right font-mono text-xs dip-tabular">${fmtDurationMs(o.actionDuration?.avgMs)}</td>
         </tr>
       `,
       )
@@ -1120,7 +1520,7 @@ function renderEntitiesView(data: WorkbenchOverviewResponse): string {
     tableHtml = `
       <table class="w-full text-left border-collapse">
         <thead>
-          <tr class="text-xs font-medium text-slate-500 dark:text-slate-400">
+          <tr class="text-xs font-medium text-[var(--dip-text-muted)]">
             <th class="pb-2.5 pr-4">Operator Ref</th>
             <th class="pb-2.5 px-3 text-right">Actions</th>
             <th class="pb-2.5 px-3 text-right">Queues</th>
@@ -1129,7 +1529,7 @@ function renderEntitiesView(data: WorkbenchOverviewResponse): string {
             <th class="pb-2.5 pl-3 text-right">Avg Handle</th>
           </tr>
         </thead>
-        <tbody>${rows || `<tr><td colspan="6" class="py-4 text-xs text-slate-500">No operator records match filter.</td></tr>`}</tbody>
+        <tbody>${rows || `<tr><td colspan="6" class="py-4 text-xs text-[var(--dip-text-muted)]">No operator records match filter.</td></tr>`}</tbody>
       </table>
     `;
   } else {
@@ -1137,13 +1537,13 @@ function renderEntitiesView(data: WorkbenchOverviewResponse): string {
       .filter((s) => !q || s.serviceCode.toLowerCase().includes(q))
       .map(
         (s) => `
-        <tr class="border-t border-slate-100 dark:border-slate-800">
-          <td class="py-2.5 pr-4 font-mono text-xs font-medium text-slate-900 dark:text-slate-100">${escHtml(s.serviceCode)}</td>
-          <td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums">${s.submittedCount}</td>
-          <td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums">${s.completedCount}</td>
-          <td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums">${fmtBps(s.completionRateBps)}</td>
-          <td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums">${s.slaBreachCount}</td>
-          <td class="py-2.5 pl-3 text-right font-mono text-xs tabular-nums">${fmtDurationMs(s.duration.p95Ms)}</td>
+        <tr class="border-t border-[var(--dip-border)] hover:bg-[var(--dip-bg-subtle)]">
+          <td class="py-2.5 pr-4 font-mono text-xs font-medium text-[var(--dip-text-primary)]">${escHtml(s.serviceCode)}</td>
+          <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${s.submittedCount}</td>
+          <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${s.completedCount}</td>
+          <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${fmtBps(s.completionRateBps)}</td>
+          <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${s.slaBreachCount}</td>
+          <td class="py-2.5 pl-3 text-right font-mono text-xs dip-tabular">${fmtDurationMs(s.duration.p95Ms)}</td>
         </tr>
       `,
       )
@@ -1151,7 +1551,7 @@ function renderEntitiesView(data: WorkbenchOverviewResponse): string {
     tableHtml = `
       <table class="w-full text-left border-collapse">
         <thead>
-          <tr class="text-xs font-medium text-slate-500 dark:text-slate-400">
+          <tr class="text-xs font-medium text-[var(--dip-text-muted)]">
             <th class="pb-2.5 pr-4">Service Code</th>
             <th class="pb-2.5 px-3 text-right">Submitted</th>
             <th class="pb-2.5 px-3 text-right">Completed</th>
@@ -1160,13 +1560,14 @@ function renderEntitiesView(data: WorkbenchOverviewResponse): string {
             <th class="pb-2.5 pl-3 text-right">p95 Duration</th>
           </tr>
         </thead>
-        <tbody>${rows || `<tr><td colspan="6" class="py-4 text-xs text-slate-500">No services match filter.</td></tr>`}</tbody>
+        <tbody>${rows || `<tr><td colspan="6" class="py-4 text-xs text-[var(--dip-text-muted)]">No services match filter.</td></tr>`}</tbody>
       </table>
     `;
   }
 
   return `
-    <section class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-5">
+    ${header}
+    <section class="rounded-[var(--dip-radius-lg)] border border-[var(--dip-border)] bg-[var(--dip-bg-surface)] p-6 space-y-5">
       ${tabBar}
       <div class="overflow-x-auto">${tableHtml}</div>
     </section>
@@ -1177,15 +1578,43 @@ function renderApiView(data: WorkbenchOverviewResponse): string {
   const api = data.dashboards.apiAnalytics.apiMetrics;
   const alerts = data.advanced.anomalies.alerts;
 
-  const endpointRows = api.endpoints
+  const header = renderPageHeader(
+    "API Health & Anomaly Detection",
+    "Route-level latency percentiles and deterministic integer rolling-baseline alerts",
+  );
+
+  const statStrip = renderStatStrip([
+    {
+      label: "API Request Volume",
+      value: api.totalRequests.toLocaleString("en-IN"),
+      context: `2xx: ${api.status2xxCount} · 4xx: ${api.status4xxCount} · 5xx: ${api.status5xxCount}`,
+    },
+    {
+      label: "Overall Error Rate",
+      value: fmtBps(api.errorRateBps),
+      context: `5xx Server Error ${fmtBps(api.serverErrorRateBps)}`,
+    },
+    {
+      label: "p95 Latency",
+      value: fmtDurationMs(api.overallLatency?.p95Ms),
+      context: `p99 ${fmtDurationMs(api.overallLatency?.p99Ms)}`,
+    },
+    {
+      label: "Detected Anomalies",
+      value: String(alerts.length),
+      context: `${data.advanced.anomalies.evaluatedBucketsCount} buckets evaluated`,
+    },
+  ]);
+
+  const endpointRows = (api.endpoints ?? [])
     .map(
       (ep) => `
-      <tr class="border-t border-slate-100 dark:border-slate-800">
-        <td class="py-2.5 pr-4 font-mono text-xs font-medium text-slate-900 dark:text-slate-100">${escHtml(ep.endpointKey)}</td>
-        <td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums">${ep.totalRequests}</td>
-        <td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums">${fmtBps(ep.errorRateBps)}</td>
-        <td class="py-2.5 px-3 text-right font-mono text-xs tabular-nums">${fmtDurationMs(ep.latency.p50Ms)}</td>
-        <td class="py-2.5 pl-3 text-right font-mono text-xs tabular-nums">${fmtDurationMs(ep.latency.p95Ms)}</td>
+      <tr class="border-t border-[var(--dip-border)]">
+        <td class="py-2.5 pr-4 font-mono text-xs font-medium text-[var(--dip-text-primary)]">${escHtml(ep.routeKey)}</td>
+        <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${ep.requestCount}</td>
+        <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${fmtBps(ep.errorRateBps)}</td>
+        <td class="py-2.5 px-3 text-right font-mono text-xs dip-tabular">${fmtDurationMs(ep.latency?.p50Ms)}</td>
+        <td class="py-2.5 pl-3 text-right font-mono text-xs dip-tabular">${fmtDurationMs(ep.latency?.p95Ms)}</td>
       </tr>
     `,
     )
@@ -1194,22 +1623,18 @@ function renderApiView(data: WorkbenchOverviewResponse): string {
   const alertRows = alerts
     .map(
       (a) => `
-      <div class="p-4 rounded-lg border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <div class="p-4 rounded-[var(--dip-radius-md)] border border-[var(--dip-border)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div class="space-y-1">
-          <div class="flex items-center gap-2 text-xs font-semibold ${
-            a.severity === "critical"
-              ? "text-red-700 dark:text-red-400"
-              : "text-amber-700 dark:text-amber-400"
-          }">
-            <span>${a.severity === "critical" ? "CRITICAL" : "WARNING"}</span>
-            <span aria-hidden="true">·</span>
-            <span class="font-mono">${escHtml(a.metric)}</span>
-            <span aria-hidden="true">·</span>
-            <span class="font-mono">${escHtml(a.bucketKey)}</span>
+          <div class="flex items-center gap-2 text-xs">
+            ${renderStatusLabel(a.severity === "critical" ? "red" : "yellow", a.severity.toUpperCase())}
+            <span aria-hidden="true" class="text-[var(--dip-text-muted)]">·</span>
+            <span class="font-mono font-medium text-[var(--dip-text-primary)]">${escHtml(a.metric)}</span>
+            <span aria-hidden="true" class="text-[var(--dip-text-muted)]">·</span>
+            <span class="font-mono text-[var(--dip-text-muted)]">${escHtml(a.bucketKey)}</span>
           </div>
-          <p class="text-xs text-slate-600 dark:text-slate-300">${escHtml(a.reason)}</p>
+          <p class="text-xs text-[var(--dip-text-secondary)]">${escHtml(a.reason)}</p>
         </div>
-        <div class="text-xs font-mono tabular-nums text-slate-500 dark:text-slate-400 shrink-0">
+        <div class="text-xs font-mono dip-tabular text-[var(--dip-text-muted)] shrink-0">
           Observed ${a.observedValue} vs baseline ${a.baselineMean}
         </div>
       </div>
@@ -1218,38 +1643,22 @@ function renderApiView(data: WorkbenchOverviewResponse): string {
     .join("");
 
   return `
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      <div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5">
-        <div class="text-xs font-medium text-slate-500 dark:text-slate-400">API Request Volume</div>
-        <div class="mt-2 font-display text-2xl font-bold font-mono tabular-nums">${api.totalRequests}</div>
-        <div class="mt-2 text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums">2xx: ${api.success2xxCount} · 4xx: ${api.clientError4xxCount} · 5xx: ${api.serverError5xxCount}</div>
-      </div>
-      <div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5">
-        <div class="text-xs font-medium text-slate-500 dark:text-slate-400">Overall Error Rate</div>
-        <div class="mt-2 font-display text-2xl font-bold font-mono tabular-nums">${fmtBps(api.errorRateBps)}</div>
-        <div class="mt-2 text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums">5xx Server Error ${fmtBps(api.serverErrorRateBps)}</div>
-      </div>
-      <div class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5">
-        <div class="text-xs font-medium text-slate-500 dark:text-slate-400">API p95 / p99 Latency</div>
-        <div class="mt-2 font-display text-2xl font-bold font-mono tabular-nums">${fmtDurationMs(api.overallLatency.p95Ms)}</div>
-        <div class="mt-2 text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums">p99 ${fmtDurationMs(api.overallLatency.p99Ms)}</div>
-      </div>
-    </div>
-
-    <section class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4">
+    ${header}
+    ${statStrip}
+    <section class="rounded-[var(--dip-radius-lg)] border border-[var(--dip-border)] bg-[var(--dip-bg-surface)] p-6 space-y-4">
       <div class="flex items-baseline justify-between gap-2">
-        <h2 class="font-display text-base font-semibold text-slate-900 dark:text-slate-100">Deterministic Rolling-Baseline Anomaly Alerts</h2>
-        <span class="text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums">${alerts.length} alerts across ${data.advanced.anomalies.evaluatedBucketsCount} buckets</span>
+        <h2 class="dip-font-display text-base font-semibold text-[var(--dip-text-primary)]">Deterministic Rolling-Baseline Alerts</h2>
+        <span class="text-xs text-[var(--dip-text-muted)] font-mono dip-tabular">${alerts.length} alerts</span>
       </div>
-      <div class="space-y-3">${alertRows || `<p class="text-xs text-slate-500 dark:text-slate-400">No rolling-baseline anomalies detected in current window.</p>`}</div>
+      <div class="space-y-3">${alertRows || `<p class="text-xs text-[var(--dip-text-muted)]">No rolling-baseline anomalies detected in current window.</p>`}</div>
     </section>
 
-    <section class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6">
-      <h2 class="font-display text-base font-semibold text-slate-900 dark:text-slate-100 mb-4">Endpoint Breakdown</h2>
+    <section class="rounded-[var(--dip-radius-lg)] border border-[var(--dip-border)] bg-[var(--dip-bg-surface)] p-6">
+      <h2 class="dip-font-display text-base font-semibold text-[var(--dip-text-primary)] mb-4">Endpoint Breakdown</h2>
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
           <thead>
-            <tr class="text-xs font-medium text-slate-500 dark:text-slate-400">
+            <tr class="text-xs font-medium text-[var(--dip-text-muted)]">
               <th class="pb-2.5 pr-4">Endpoint</th>
               <th class="pb-2.5 px-3 text-right">Requests</th>
               <th class="pb-2.5 px-3 text-right">Error Rate</th>
@@ -1257,7 +1666,7 @@ function renderApiView(data: WorkbenchOverviewResponse): string {
               <th class="pb-2.5 pl-3 text-right">p95</th>
             </tr>
           </thead>
-          <tbody>${endpointRows || `<tr><td colspan="5" class="py-4 text-xs text-slate-500">No API telemetry recorded for this tenant.</td></tr>`}</tbody>
+          <tbody>${endpointRows || `<tr><td colspan="5" class="py-4 text-xs text-[var(--dip-text-muted)]">No API telemetry recorded for this tenant.</td></tr>`}</tbody>
         </table>
       </div>
     </section>
@@ -1266,155 +1675,210 @@ function renderApiView(data: WorkbenchOverviewResponse): string {
 
 function renderExportView(): string {
   const preview = state.exportPreview;
+  const header = renderPageHeader(
+    "Export & K-Anonymity Studio",
+    "Aggregate-only exports with OWASP formula neutralization and small-cell suppression",
+  );
+
+  // AnalyticsAndReportingPatterns: Saved Report Presets sidebar + configuration card + preview + dispatch log
+  const presetButtons = SAVED_REPORT_PRESETS.map(
+    (p) => `
+      <button type="button" data-report-preset="${p.id}" class="report-preset-btn w-full text-left px-3 py-2.5 rounded-[var(--dip-radius-md)] border border-[var(--dip-border)] hover:border-[var(--dip-border-strong)] bg-[var(--dip-bg-subtle)]/50 transition-colors space-y-0.5 cursor-pointer">
+        <div class="text-xs font-semibold text-[var(--dip-text-primary)]">${escHtml(p.label)}</div>
+        <div class="text-[11px] font-mono text-[var(--dip-text-muted)]">${p.dataset} · ${p.format.toUpperCase()} · min=${p.minCount}</div>
+      </button>
+    `,
+  ).join("");
+
+  const dispatchLogHtml =
+    state.exportLog.length > 0
+      ? `
+      <section class="rounded-[var(--dip-radius-lg)] border border-[var(--dip-border)] bg-[var(--dip-bg-surface)] p-6 space-y-3">
+        <h3 class="dip-font-display text-sm font-semibold text-[var(--dip-text-primary)]">Session Export Dispatch Log</h3>
+        <ul class="divide-y divide-[var(--dip-border)] text-xs">
+          ${state.exportLog
+            .map(
+              (item) => `
+            <li class="flex items-center justify-between py-2 gap-3">
+              <span class="font-medium text-[var(--dip-text-primary)] font-mono">${escHtml(item.dataset)} · ${escHtml(item.format)} (${item.rowCount} rows, ${item.suppressedRowCount} suppressed)</span>
+              <div class="flex items-center gap-3">
+                <span class="text-[var(--dip-text-muted)] font-mono dip-tabular">${escHtml(item.timestamp)}</span>
+                ${renderStatusLabel("green", "Exported")}
+              </div>
+            </li>
+          `,
+            )
+            .join("")}
+        </ul>
+      </section>
+    `
+      : "";
+
   return `
-    <section class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-5">
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    ${header}
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <aside class="lg:col-span-4 rounded-[var(--dip-radius-lg)] border border-[var(--dip-border)] bg-[var(--dip-bg-surface)] p-5 space-y-4">
         <div>
-          <h2 class="font-display text-base font-semibold text-slate-900 dark:text-slate-100">Aggregate-Only Export &amp; K-Anonymity Suppression</h2>
-          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Enforces OWASP CSV formula injection neutralization, blocks raw event/account identifiers, and optionally suppresses small cells (&lt; minCount).
-          </p>
+          <h2 class="dip-font-display text-sm font-semibold text-[var(--dip-text-primary)]">Saved Report Presets</h2>
+          <p class="text-xs text-[var(--dip-text-muted)] mt-1">One-click K-anonymity and financial report configurations</p>
         </div>
-        <div class="flex items-center gap-2 shrink-0">
-          <button type="button" id="run-export-preview-btn" class="px-3.5 py-2 rounded-lg text-xs font-medium border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap">
-            Refresh Preview
-          </button>
-          <button type="button" id="download-export-file-btn" class="px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors whitespace-nowrap">
-            Download ${state.exportFormat.toUpperCase()}
-          </button>
-        </div>
-      </div>
+        <div class="space-y-2.5">${presetButtons}</div>
+      </aside>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <label class="space-y-1 text-xs">
-          <span class="font-medium text-slate-600 dark:text-slate-300">Dataset</span>
-          <select id="exp-dataset" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs">
-            <option value="regions"${state.exportDataset === "regions" ? " selected" : ""}>Geographic Regions (includes small cells)</option>
-            <option value="services"${state.exportDataset === "services" ? " selected" : ""}>Service Performance</option>
-            <option value="unit_economics"${state.exportDataset === "unit_economics" ? " selected" : ""}>Service Unit Economics</option>
-          </select>
-        </label>
-
-        <label class="space-y-1 text-xs">
-          <span class="font-medium text-slate-600 dark:text-slate-300">Format</span>
-          <select id="exp-format" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs">
-            <option value="csv"${state.exportFormat === "csv" ? " selected" : ""}>CSV (RFC 4180 + OWASP Safe)</option>
-            <option value="ndjson"${state.exportFormat === "ndjson" ? " selected" : ""}>NDJSON (Streaming Lines)</option>
-            <option value="json"${state.exportFormat === "json" ? " selected" : ""}>JSON Report Envelope</option>
-          </select>
-        </label>
-
-        <label class="space-y-1 text-xs">
-          <span class="font-medium text-slate-600 dark:text-slate-300">K-Anonymity Threshold</span>
-          <select id="exp-min-count" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs">
-            <option value="0"${state.exportMinCount === 0 ? " selected" : ""}>Disabled (0)</option>
-            <option value="5"${state.exportMinCount === 5 ? " selected" : ""}>Minimum 5 records</option>
-            <option value="15"${state.exportMinCount === 15 ? " selected" : ""}>Minimum 15 records</option>
-          </select>
-        </label>
-
-        <label class="space-y-1 text-xs">
-          <span class="font-medium text-slate-600 dark:text-slate-300">Small-Cell Policy</span>
-          <select id="exp-mode" class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs">
-            <option value="suppress"${state.exportMode === "suppress" ? " selected" : ""}>Omit small rows (suppress)</option>
-            <option value="rollup_other"${state.exportMode === "rollup_other" ? " selected" : ""}>Roll into __suppressed_small_cells__</option>
-          </select>
-        </label>
-      </div>
-
-      ${
-        preview
-          ? `
-        <div class="space-y-2">
-          <div class="text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums">
-            Format: ${escHtml(preview.format.toUpperCase())} · Output rows: ${preview.rowCount} · Suppressed small cells: ${preview.suppressedRowCount}
+      <div class="lg:col-span-8 space-y-6">
+        <section class="rounded-[var(--dip-radius-lg)] border border-[var(--dip-border)] bg-[var(--dip-bg-surface)] p-6 space-y-5">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <h2 class="dip-font-display text-base font-semibold text-[var(--dip-text-primary)]">Export Parameters</h2>
+            <div class="flex items-center gap-2 shrink-0">
+              <button type="button" id="run-export-preview-btn" class="px-3.5 py-2 rounded-[var(--dip-radius-md)] text-xs font-medium border border-[var(--dip-border)] hover:bg-[var(--dip-bg-subtle)] transition-colors whitespace-nowrap">
+                Refresh Preview
+              </button>
+              <button type="button" id="download-export-file-btn" class="px-4 py-2 rounded-[var(--dip-radius-md)] text-xs font-semibold bg-[var(--dip-accent)] hover:bg-[var(--dip-accent-hover)] text-[var(--dip-accent-fg)] transition-colors whitespace-nowrap">
+                Download ${state.exportFormat.toUpperCase()}
+              </button>
+            </div>
           </div>
-          <pre class="p-4 rounded-lg bg-slate-950 text-slate-100 font-mono text-xs overflow-x-auto max-h-96 leading-relaxed">${escHtml(preview.content)}</pre>
-        </div>
-      `
-          : `<p class="text-xs text-slate-500">Loading export preview...</p>`
-      }
-    </section>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label class="space-y-1 text-xs">
+              <span class="font-medium text-[var(--dip-text-secondary)]">Dataset</span>
+              <select id="exp-dataset" class="w-full px-3 py-2 rounded-[var(--dip-radius-md)] border border-[var(--dip-border)] bg-[var(--dip-bg-subtle)] text-xs">
+                <option value="regions"${state.exportDataset === "regions" ? " selected" : ""}>Geographic Regions (includes small cells)</option>
+                <option value="services"${state.exportDataset === "services" ? " selected" : ""}>Service Performance</option>
+                <option value="unit_economics"${state.exportDataset === "unit_economics" ? " selected" : ""}>Service Unit Economics</option>
+              </select>
+            </label>
+
+            <label class="space-y-1 text-xs">
+              <span class="font-medium text-[var(--dip-text-secondary)]">Format</span>
+              <select id="exp-format" class="w-full px-3 py-2 rounded-[var(--dip-radius-md)] border border-[var(--dip-border)] bg-[var(--dip-bg-subtle)] text-xs">
+                <option value="csv"${state.exportFormat === "csv" ? " selected" : ""}>CSV (RFC 4180 + OWASP Safe)</option>
+                <option value="ndjson"${state.exportFormat === "ndjson" ? " selected" : ""}>NDJSON (Streaming Lines)</option>
+                <option value="json"${state.exportFormat === "json" ? " selected" : ""}>JSON Report Envelope</option>
+              </select>
+            </label>
+
+            <label class="space-y-1 text-xs">
+              <span class="font-medium text-[var(--dip-text-secondary)]">K-Anonymity Threshold</span>
+              <select id="exp-min-count" class="w-full px-3 py-2 rounded-[var(--dip-radius-md)] border border-[var(--dip-border)] bg-[var(--dip-bg-subtle)] text-xs">
+                <option value="0"${state.exportMinCount === 0 ? " selected" : ""}>Disabled (0)</option>
+                <option value="5"${state.exportMinCount === 5 ? " selected" : ""}>Minimum 5 records</option>
+                <option value="15"${state.exportMinCount === 15 ? " selected" : ""}>Minimum 15 records</option>
+              </select>
+            </label>
+
+            <label class="space-y-1 text-xs">
+              <span class="font-medium text-[var(--dip-text-secondary)]">Small-Cell Policy</span>
+              <select id="exp-mode" class="w-full px-3 py-2 rounded-[var(--dip-radius-md)] border border-[var(--dip-border)] bg-[var(--dip-bg-subtle)] text-xs">
+                <option value="suppress"${state.exportMode === "suppress" ? " selected" : ""}>Omit small rows (suppress)</option>
+                <option value="rollup_other"${state.exportMode === "rollup_other" ? " selected" : ""}>Roll into __suppressed_small_cells__</option>
+              </select>
+            </label>
+          </div>
+
+          ${
+            preview
+              ? `
+            <div class="space-y-2 pt-2 border-t border-[var(--dip-border)]">
+              <div class="text-xs text-[var(--dip-text-muted)] font-mono dip-tabular">
+                Format: ${escHtml(preview.format.toUpperCase())} · Output rows: ${preview.rowCount} · Suppressed small cells: ${preview.suppressedRowCount}
+              </div>
+              <pre class="p-4 rounded-[var(--dip-radius-md)] bg-[#0b0f17] text-slate-100 font-mono text-xs overflow-x-auto max-h-80 leading-relaxed">${escHtml(preview.content)}</pre>
+            </div>
+          `
+              : `<p class="text-xs text-[var(--dip-text-muted)]">Loading export preview...</p>`
+          }
+        </section>
+
+        ${dispatchLogHtml}
+      </div>
+    </div>
   `;
 }
 
 function renderGovernanceView(): string {
+  const header = renderPageHeader(
+    "Privacy, Tenant Isolation & Contracts",
+    "Interactive validation against PII rejection, prototype-pollution protection, and fail-closed tenant boundaries",
+  );
+
   return `
+    ${header}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <section class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4">
+      <section class="rounded-[var(--dip-radius-lg)] border border-[var(--dip-border)] bg-[var(--dip-bg-surface)] p-6 space-y-4">
         <div class="flex items-baseline justify-between gap-2">
-          <h2 class="font-display text-base font-semibold text-slate-900 dark:text-slate-100">Live Event &amp; PII Guard Validator</h2>
-          <span class="text-xs text-slate-500 dark:text-slate-400">Runs validateAnalyticsEvent()</span>
+          <h2 class="dip-font-display text-base font-semibold text-[var(--dip-text-primary)]">Live Event &amp; PII Guard Validator</h2>
+          <span class="text-xs text-[var(--dip-text-muted)] font-mono">validateAnalyticsEvent()</span>
         </div>
 
         <div class="flex flex-wrap gap-2">
-          <button type="button" data-preset="valid" class="preset-btn px-3 py-1.5 rounded-md text-xs font-medium border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800">Valid Event</button>
-          <button type="button" data-preset="pii_aadhaar" class="preset-btn px-3 py-1.5 rounded-md text-xs font-medium border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800">PII / Aadhaar</button>
-          <button type="button" data-preset="document_uri" class="preset-btn px-3 py-1.5 rounded-md text-xs font-medium border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800">Document Data URI</button>
-          <button type="button" data-preset="unknown_safe" class="preset-btn px-3 py-1.5 rounded-md text-xs font-medium border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800">Unknown Field</button>
+          <button type="button" data-preset="valid" class="preset-btn px-3 py-1.5 rounded-[var(--dip-radius-md)] text-xs font-medium border border-[var(--dip-border)] hover:bg-[var(--dip-bg-subtle)]">Valid Event</button>
+          <button type="button" data-preset="pii_aadhaar" class="preset-btn px-3 py-1.5 rounded-[var(--dip-radius-md)] text-xs font-medium border border-[var(--dip-border)] hover:bg-[var(--dip-bg-subtle)]">PII / Aadhaar</button>
+          <button type="button" data-preset="document_uri" class="preset-btn px-3 py-1.5 rounded-[var(--dip-radius-md)] text-xs font-medium border border-[var(--dip-border)] hover:bg-[var(--dip-bg-subtle)]">Document Data URI</button>
+          <button type="button" data-preset="unknown_safe" class="preset-btn px-3 py-1.5 rounded-[var(--dip-radius-md)] text-xs font-medium border border-[var(--dip-border)] hover:bg-[var(--dip-bg-subtle)]">Unknown Field</button>
         </div>
 
         <textarea
           id="validator-json-input"
           rows="10"
           aria-label="Event JSON payload to validate"
-          class="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 font-mono text-xs text-slate-900 dark:text-slate-100 focus-visible:outline-2 focus-visible:outline-blue-600"
+          class="w-full p-3 rounded-[var(--dip-radius-md)] border border-[var(--dip-border)] bg-[var(--dip-bg-subtle)] font-mono text-xs text-[var(--dip-text-primary)] focus-visible:outline-2 focus-visible:outline-[var(--dip-focus-ring)]"
         >${escHtml(state.validatorInput)}</textarea>
 
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <label class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+          <label class="flex items-center gap-2 text-xs text-[var(--dip-text-secondary)]">
             <span>Unknown Field Policy</span>
-            <select id="validator-policy" class="px-2.5 py-1.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs">
+            <select id="validator-policy" class="px-2.5 py-1.5 rounded-[var(--dip-radius-md)] border border-[var(--dip-border)] bg-[var(--dip-bg-subtle)] text-xs">
               <option value="reject"${state.validatorPolicy === "reject" ? " selected" : ""}>reject</option>
               <option value="strip_and_audit"${state.validatorPolicy === "strip_and_audit" ? " selected" : ""}>strip_and_audit</option>
             </select>
           </label>
-          <button type="button" id="run-validator-btn" class="px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors">
+          <button type="button" id="run-validator-btn" class="px-4 py-2 rounded-[var(--dip-radius-md)] text-xs font-semibold bg-[var(--dip-accent)] hover:bg-[var(--dip-accent-hover)] text-[var(--dip-accent-fg)] transition-colors">
             Validate Event
           </button>
         </div>
 
         ${
           state.validatorResult
-            ? `<pre class="p-3.5 rounded-lg bg-slate-950 text-slate-100 font-mono text-xs overflow-x-auto max-h-64">${escHtml(state.validatorResult)}</pre>`
+            ? `<pre class="p-3.5 rounded-[var(--dip-radius-md)] bg-[#0b0f17] text-slate-100 font-mono text-xs overflow-x-auto max-h-64">${escHtml(state.validatorResult)}</pre>`
             : ""
         }
       </section>
 
       <div class="space-y-6">
-        <section class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4">
-          <h2 class="font-display text-base font-semibold text-slate-900 dark:text-slate-100">Tenant Isolation Boundary Probe</h2>
-          <p class="text-xs text-slate-500 dark:text-slate-400">
+        <section class="rounded-[var(--dip-radius-lg)] border border-[var(--dip-border)] bg-[var(--dip-bg-surface)] p-6 space-y-4">
+          <h2 class="dip-font-display text-base font-semibold text-[var(--dip-text-primary)]">Tenant Isolation Boundary Probe</h2>
+          <p class="text-xs text-[var(--dip-text-secondary)]">
             Tests <code>authorizeTenantQuery()</code> when a client requests a tenant differing from the verified backend session (<code>${escHtml(state.tenantId)}</code>).
           </p>
           <div class="flex flex-wrap items-center gap-3">
-            <select id="boundary-requested-tenant" class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs">
+            <select id="boundary-requested-tenant" class="px-3 py-2 rounded-[var(--dip-radius-md)] border border-[var(--dip-border)] bg-[var(--dip-bg-subtle)] text-xs">
               <option value="tenant_beta"${state.boundaryRequestedTenant === "tenant_beta" ? " selected" : ""}>Request tenant_beta</option>
               <option value="tenant_alpha"${state.boundaryRequestedTenant === "tenant_alpha" ? " selected" : ""}>Request tenant_alpha</option>
               <option value="tenant_unauthorized"${state.boundaryRequestedTenant === "tenant_unauthorized" ? " selected" : ""}>Request tenant_unauthorized</option>
             </select>
-            <button type="button" id="run-boundary-probe-btn" class="px-4 py-2 rounded-lg text-xs font-semibold border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+            <button type="button" id="run-boundary-probe-btn" class="px-4 py-2 rounded-[var(--dip-radius-md)] text-xs font-semibold border border-[var(--dip-border)] hover:bg-[var(--dip-bg-subtle)] transition-colors">
               Test Authorization
             </button>
           </div>
           ${
             state.boundaryResult
-              ? `<pre class="p-3.5 rounded-lg bg-slate-950 text-slate-100 font-mono text-xs overflow-x-auto">${escHtml(state.boundaryResult)}</pre>`
+              ? `<pre class="p-3.5 rounded-[var(--dip-radius-md)] bg-[#0b0f17] text-slate-100 font-mono text-xs overflow-x-auto">${escHtml(state.boundaryResult)}</pre>`
               : ""
           }
         </section>
 
-        <section class="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-3">
+        <section class="rounded-[var(--dip-radius-lg)] border border-[var(--dip-border)] bg-[var(--dip-bg-surface)] p-6 space-y-3">
           <div class="flex items-center justify-between gap-2">
-            <h2 class="font-display text-base font-semibold text-slate-900 dark:text-slate-100">Contract &amp; Integration Manifest</h2>
-            <button type="button" id="load-manifest-btn" class="px-3 py-1.5 rounded-md text-xs font-medium border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800">
+            <h2 class="dip-font-display text-base font-semibold text-[var(--dip-text-primary)]">Contract &amp; Integration Manifest</h2>
+            <button type="button" id="load-manifest-btn" class="px-3 py-1.5 rounded-[var(--dip-radius-md)] text-xs font-medium border border-[var(--dip-border)] hover:bg-[var(--dip-bg-subtle)]">
               Load /manifest
             </button>
           </div>
           ${
             state.contractCatalogJson
-              ? `<pre class="p-3.5 rounded-lg bg-slate-950 text-slate-100 font-mono text-xs overflow-x-auto max-h-64">${escHtml(state.contractCatalogJson)}</pre>`
-              : `<p class="text-xs text-slate-500 dark:text-slate-400">Click "Load /manifest" to inspect live ecosystem contracts and security invariants.</p>`
+              ? `<pre class="p-3.5 rounded-[var(--dip-radius-md)] bg-[#0b0f17] text-slate-100 font-mono text-xs overflow-x-auto max-h-64">${escHtml(state.contractCatalogJson)}</pre>`
+              : `<p class="text-xs text-[var(--dip-text-muted)]">Click "Load /manifest" to inspect live ecosystem contracts and security invariants.</p>`
           }
         </section>
       </div>
@@ -1435,10 +1899,10 @@ function renderViewport(): void {
 
   if (state.errorMessage) {
     viewport.innerHTML = `
-      <div class="rounded-xl bg-white dark:bg-slate-900 border border-red-200 dark:border-red-900 p-6 space-y-3">
-        <div class="text-sm font-semibold text-red-700 dark:text-red-400">Error Loading Workbench</div>
-        <p class="text-xs text-slate-600 dark:text-slate-300">${escHtml(state.errorMessage)}</p>
-        <button type="button" id="retry-fetch-btn" class="px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 text-white">Retry</button>
+      <div class="rounded-[var(--dip-radius-lg)] bg-[var(--dip-bg-surface)] border border-[var(--dip-danger)] p-6 space-y-3">
+        <div class="text-sm font-semibold text-[var(--dip-danger)]">Error Loading Workbench</div>
+        <p class="text-xs text-[var(--dip-text-secondary)]">${escHtml(state.errorMessage)}</p>
+        <button type="button" id="retry-fetch-btn" class="px-4 py-2 rounded-[var(--dip-radius-md)] text-xs font-semibold bg-[var(--dip-accent)] text-[var(--dip-accent-fg)]">Retry</button>
       </div>
     `;
     document.getElementById("retry-fetch-btn")?.addEventListener("click", () => {
@@ -1488,6 +1952,43 @@ function bindViewportHandlers(): void {
     void fetchOverview();
   });
 
+  document.querySelectorAll<HTMLButtonElement>(".trend-legend-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset["trendToggle"];
+      if (!id) return;
+      if (state.hiddenTrendSeries.has(id)) state.hiddenTrendSeries.delete(id);
+      else state.hiddenTrendSeries.add(id);
+      renderViewport();
+    });
+  });
+
+  document.querySelectorAll<HTMLButtonElement>(".donut-legend-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset["donutToggle"];
+      if (!id) return;
+      if (state.hiddenDonutIds.has(id)) state.hiddenDonutIds.delete(id);
+      else state.hiddenDonutIds.add(id);
+      renderViewport();
+    });
+  });
+
+  document.querySelectorAll<HTMLButtonElement>(".svc-catalogue-card").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const code = btn.dataset["filterServiceCard"] ?? "";
+      state.serviceCode = state.serviceCode === code ? "" : code;
+      const svcSelect = document.getElementById("filter-service") as HTMLSelectElement | null;
+      if (svcSelect) svcSelect.value = state.serviceCode;
+      void fetchOverview();
+    });
+  });
+
+  document.querySelectorAll<HTMLButtonElement>(".fin-method-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.financeMethodFilter = btn.dataset["finMethod"] ?? "all";
+      renderViewport();
+    });
+  });
+
   document.querySelectorAll<HTMLButtonElement>(".entity-tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const tab = btn.dataset["entityTab"];
@@ -1512,7 +2013,18 @@ function bindViewportHandlers(): void {
     });
   }
 
-  // Export Studio bindings
+  document.querySelectorAll<HTMLButtonElement>(".report-preset-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const preset = SAVED_REPORT_PRESETS.find((p) => p.id === btn.dataset["reportPreset"]);
+      if (!preset) return;
+      state.exportDataset = preset.dataset;
+      state.exportFormat = preset.format;
+      state.exportMinCount = preset.minCount;
+      state.exportMode = preset.mode;
+      void fetchExportPreview(false);
+    });
+  });
+
   document.getElementById("exp-dataset")?.addEventListener("change", (e) => {
     state.exportDataset = (e.target as HTMLSelectElement).value as AppState["exportDataset"];
     void fetchExportPreview(false);
@@ -1536,7 +2048,6 @@ function bindViewportHandlers(): void {
     void fetchExportPreview(true);
   });
 
-  // Governance / Privacy Validator bindings
   document.querySelectorAll<HTMLButtonElement>(".preset-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const key = btn.dataset["preset"] ?? "valid";
@@ -1646,6 +2157,11 @@ function bootstrap(): void {
     setMobileSidebarOpen(false);
   });
 
+  document.getElementById("collapse-sidebar-btn")?.addEventListener("click", () => {
+    state.sidebarCollapsed = !state.sidebarCollapsed;
+    updateHeaderAndMeta();
+  });
+
   const themeBtn = document.getElementById("theme-toggle-btn");
   themeBtn?.addEventListener("click", () => {
     state.darkMode = !state.darkMode;
@@ -1663,6 +2179,7 @@ function bootstrap(): void {
   document.getElementById("filter-tenant")?.addEventListener("change", (e) => {
     state.tenantId = (e.target as HTMLSelectElement).value;
     state.serviceCode = "";
+    state.hiddenDonutIds.clear();
     state.exportPreview = null;
     void fetchOverview();
   });
